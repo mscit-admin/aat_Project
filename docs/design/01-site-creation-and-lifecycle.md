@@ -4,174 +4,288 @@
 
 يسد هذا القسم ثغرة في الوثيقة الأصلية: كيف يولد الموقع في النظام، ومن يملك ذلك، وكيف يسير عبر المراحل حتى الإغلاق.
 
-## 1. القرارات المعتمدة
+**المصدر:** `GSDN_Site_Master_Template.xlsx`، وتحديداً شيتات Master وRF & Design وSetting، والملاحظات المكتوبة داخل الشيتات. كل قاعدة هنا مأخوذة من الملف ما لم يُذكر أنها اقتراح.
 
-| البند | القرار |
+## 1. الخلاصة
+
+| السؤال | الجواب من الملف |
 | --- | --- |
-| من يُنشئ الموقع | منسق المنطقة، داخل منطقته فقط |
-| من يعتمد الموقع | مدير المشروع، لأن الموقع الجديد يغيّر نطاق المشروع |
-| ضوابط الإنشاء | رمز فريد بصيغة محددة، حقول إلزامية، منع التكرار بالرمز وبالإحداثيات |
-| المراحل غير المطلوبة | «غير منطبق» حالة صريحة للمرحلة، والبوابة تتجاوزها دون أن يعلق الموقع |
+| أين يولد الموقع؟ | في شيت **RF & Design**: «صف لكل موقع، وهو مصدر بيانات الموقع… Master وكل السجلات تقرأ منه». |
+| من يُنشئه؟ | فريق التصميم والاستملاك: **RF Engineer** تحت **Team Lead (Design & Acquisition)**. لا يوجد في قائمة الأدوار دور «منسق منطقة». |
+| من يعتمده؟ | **Project Manager**، مقابل عدد المواقع المتعاقد عليه لكل مرحلة مشروع (`tblProjectScope`). |
+| صيغة الرمز | بادئة المنطقة + 3 أرقام، مع لاحقة حرف اختيارية: `TR165` و`TR103 A`. |
+| كم مرحلة؟ | **عشر مراحل وتسع بوابات**، ومسار جانبي للتفكيك. |
+| متى تكون المرحلة «غير منطبقة»؟ | يحددها **نطاق العمل (SOW) للموقع** عند إنشائه، لا قرار يُتخذ عند كل مرحلة. |
+
+> **تعديل على قرار سابق:** القرار السابق كان أن «المنسق يُنشئ الموقع في منطقته». الملف ينظّم الفريق حسب التخصص لا حسب المنطقة، ويضع إنشاء الموقع عند فريق التصميم. هذا القسم يتبع الملف. إن كان دور منسق المنطقة سيُستحدث، يتغير البند 2.1 وحده.
 
 ## 2. إنشاء الموقع
 
-### 2.1 حالات طلب الإنشاء
+### 2.1 المسار
 
 ```
-مسودة ──► بانتظار الاعتماد ──► معتمد ──► (يدخل المرحلة الأولى)
-               │
-               └──► مرفوض (مع السبب) ──► يعود مسودة للمنسق
+مسودة (RF Engineer)
+   └─► بانتظار المراجعة (Team Lead — Design & Acquisition)
+          └─► بانتظار الاعتماد (Project Manager)
+                 ├─► معتمد ──► يدخل المرحلة 1 ويُجمَّد خطها المرجعي
+                 └─► مرفوض (مع السبب) ──► يعود مسودة
 ```
 
-- **مسودة:** يحررها المنسق بحرية، ولا يراها أحد خارج منطقته، ولا تدخل أي تقرير أو عدّاد.
-- **بانتظار الاعتماد:** تُقفل الحقول، ويظهر الطلب في قائمة مهام مدير المشروع.
-- **معتمد:** يدخل الموقع نطاق المشروع، ويدخل المرحلة الأولى، ويُجمَّد خطها المرجعي **من تاريخ الاعتماد لا تاريخ المسودة**.
-- **مرفوض:** يعود للمنسق مع السبب مكتوباً. الرفض لا يحذف الطلب، ويبقى في سجل التدقيق.
+- **المسودة** لا تدخل أي تقرير أو عدّاد، ولا تحجز رمزاً.
+- **عند الاعتماد** يتحقق النظام من عدد المواقع المعتمدة لمرحلة المشروع (PH1 / PH2) مقابل `Contract Sites` في `tblProjectScope`.
+  - داخل العدد المتعاقد عليه: اعتماد عادي.
+  - يتجاوزه: لا يُعتمد إلا كطلب تغيير من نوع `Scope Change`، وهو نوع موجود فعلاً في قائمة `ChangeType`.
+- **الخط المرجعي** للمرحلة الأولى يُجمَّد من تاريخ الاعتماد لا من تاريخ المسودة.
+- **الإلغاء والنقل** لموقع معتمد يمران عبر طلب تغيير من نوع `Cancellation` أو `Relocation` يعتمده مدير المشروع (`ApprStatus`). الموقع لا يُحذف أبداً.
 
-إلغاء موقع معتمد لاحقاً يمر بالمسار نفسه: يطلبه المنسق ويعتمده مدير المشروع، ويبقى الموقع بحالة «ملغى» مع سببه (قاعدة «لا حذف»).
+### 2.2 صيغة رمز الموقع
 
-### 2.2 الحقول الإلزامية
+الصيغة المستخرجة من الـ 469 موقعاً، بلا أي استثناء في البادئات:
 
-| الحقل | النوع | الضابط |
+```
+^(BG|GM|MI|SB|TR|WM|ZW)[0-9]{3}( [A-Z])?$
+```
+
+| البادئة | المنطقة | عدد المواقع |
 | --- | --- | --- |
-| رمز الموقع | نص | فريد على مستوى المشروع، يطابق الصيغة المعتمدة (2.3) |
-| اسم الموقع | نص | عربي، يُشذَّب من المسافات آلياً |
-| المنطقة | قائمة مرجعية | محصورة في مناطق المنسق |
-| نوع الموقع | قائمة مرجعية | من شاشة الإعدادات |
-| نوع البرج | قائمة مرجعية | من شاشة الإعدادات |
-| خط العرض / خط الطول | رقم عشري | داخل حدود ليبيا، وداخل حدود المنطقة المختارة إن توفرت |
-| مبرر الإضافة | نص | إلزامي، يقرؤه مدير المشروع عند الاعتماد |
+| `TR` | Tripoli Area | 165 |
+| `MI` | Middle Area | 80 |
+| `SB` | Sebha Area | 63 |
+| `GM` | GM Area | 49 |
+| `WM` | WM Area | 44 |
+| `BG` | Benghazi Area | 40 |
+| `ZW` | Zawia Area | 28 |
 
-حقول اختيارية عند الإنشاء: العنوان، الجهة المستفيدة، ملاحظات، مرفقات أولية.
+القواعد:
 
-### 2.3 صيغة رمز الموقع
+- **البادئة تحددها المنطقة.** يُولّد النظام البادئة من المنطقة المختارة ولا يكتبها المستخدم. تطابُق البادئة والمنطقة 100% في الملف اليوم، فيصبح ذلك قيداً.
+- **الرقم التسلسلي** يقترحه النظام (التالي في المنطقة)، ولا يُعاد استخدام رقم موقع ملغى.
+- **اللاحقة الحرفية** (`A`) موجودة في 35 موقعاً. تُقبل فقط عبر مسار النقل أو الاستبدال، وتُربط بالموقع الأصلي (البند 2.4).
+- **`Site Owner ID`** (رمز مالك البرج، مثل `BGZ008` و`MIS006`) حقل مرجعي منفصل وليس رمز الموقع. لا يُشترط تفرده، لأن موقعين قد يقعان على برج واحد لمالك واحد.
 
-> **قرار مطلوب:** الصيغة الفعلية لرموز GSDN. حتى يُعتمد، يُقترح نمط من جزأين:
-> بادئة المنطقة + رقم تسلسلي، مثل `TRP-0166`.
+### 2.3 الحقول الإلزامية
 
-القواعد بغض النظر عن الصيغة:
+**الهوية:** هي أعمدة C–P في RF & Design التي تقرأ منها بقية الشيتات.
 
-- يُخزَّن بأحرف كبيرة ودون مسافات، ويُقارن بعد التطبيع.
-- لا يُقبل أي رمز لا يطابق النمط، فلا يتكرر صف مثل `New Site`.
-- الرمز لا يتغير بعد الاعتماد. التصحيح يتم بطلب تعديل مسجل بسبب.
-- يمكن للنظام أن يقترح الرقم التالي في المنطقة، لكن المنسق يبقى صاحب القرار.
+| الحقل | القائمة المرجعية / الضابط |
+| --- | --- |
+| المنطقة | `Region` (7 مناطق)، وتولّد بادئة الرمز |
+| المنطقة الفرعية | اقتراح: تصبح إلزامية، فهي ناقصة اليوم في 168 من 475 صفاً |
+| اسم الموقع (عربي) | يُشذَّب آلياً |
+| Site Owner ID | نص حر، اختياري للمواقع الجديدة كلياً |
+| خط العرض / خط الطول | داخل حدود ليبيا، و`Earliest/Latest valid` لا تنطبق هنا |
+| Site Type | `SiteType`: Core · MFN · FN · HUB · Terminal |
+| Site Scenario | `Scenario`: Outdoor · Indoor |
+| Uplink Site | رمز موقع قائم أو `N/A` |
+| Tower Owner | `RefRFDesignTowerOwner` |
+| Existing or New | `ExistNew` |
+| RT or GF | `RTGF` |
+| Tower Type | `TowerType` |
+| Tower Height (m) | رقم موجب |
+
+**نطاق العمل:** أعمدة X–AG في Master، وهي التي تحدد المراحل المنطبقة (القسم 4).
+
+| الحقل | القيم |
+| --- | --- |
+| Project Phase | `ProjectPhases`: PH1 · PH2 |
+| Delivery Batch | `DeliveryBatches` |
+| Delivery Scenario | `DeliveryScenario`: New Build · Expansion · Hot Swap · Cold Swap · Relocation |
+| CW SOW — Tower Erection | Yes · N/A |
+| CW SOW — Site Adaption | Yes · N/A |
+| CW SOW — GECOL Power | Yes · N/A |
+| CW SOW — HLC Fiber | Yes · N/A |
+| TE SOW — Full Scope / IP Router Only | أحدهما Yes |
+| CW Delivery Model | `DeliveryModel`: In-House · Outsourced |
+
+في الملف اليوم 87 موقعاً بلا قيمة في GECOL Power وHLC Fiber وDelivery Model. لهذا يكون النطاق إلزامياً قبل الاعتماد: الموقع بلا نطاق لا يُعرف أي مراحله منطبقة.
 
 ### 2.4 منع التكرار
 
-| الفحص | النتيجة |
-| --- | --- |
-| الرمز مستخدم في المشروع (بأي حالة، بما فيها «ملغى») | **رفض** |
-| إحداثيات مطابقة تماماً لموقع قائم | **رفض** |
-| موقع قائم ضمن نصف قطر قريب (يُقترح 50 متراً) | **تحذير** يعرض المواقع القريبة، ولا يُرسَل الطلب إلا بتبرير مكتوب |
-| اسم مطابق أو شبه مطابق في المنطقة نفسها | **تحذير** |
+| الفحص | النتيجة | الدليل من الملف |
+| --- | --- | --- |
+| الرمز مستخدم (بأي حالة، بما فيها ملغى) | **رفض** | — |
+| رمز لا يطابق الصيغة | **رفض** | صف `New Site` في RF & Design |
+| إحداثيات مطابقة تماماً لموقع قائم | **رفض**، إلا عبر مسار النقل أو الاستبدال | `TR103` في RF & Design و`TR103 A` في Master: الإحداثيات والاسم نفسهما برمزين مختلفين |
+| موقع قائم ضمن 50 متراً | **تحذير** مع تبرير إلزامي | مواقع HUB المتجاورة حقيقية |
+| اسم مطابق في المنطقة نفسها | **تحذير** | — |
 
-التحذير لا يمنع لأن بعض المواقع المتجاورة حقيقية (مثل HUB بجوار موقع آخر)، لكن التبرير يظهر لمدير المشروع عند الاعتماد.
+**المواقع الستة الشاردة** موجودة في RF & Design وغائبة عن Master: `BG011` و`BG058` و`BG077` و`BG078` و`TR103` و`New Site`. في النظام لا يمكن أن يوجد موقع في سجل ويغيب عن آخر، لأن المتابعة تُحسب من سجل الموقع نفسه. هذه الستة تُحسم يدوياً قبل الترحيل.
 
 ## 3. المراحل والبوابات
 
-### 3.1 المراحل السبع — اقتراح للتأكيد
+### 3.1 المراحل العشر
 
-> المخطط المضمّن في الوثيقة الأصلية لم يصل محتواه. التسلسل التالي مستنتج من الأدوار المذكورة فيها، ويحتاج تأكيداً أو تصحيحاً.
+هذا هو تسلسل `MilestoneOrder` في Setting، وأقسام شيت Master. كل مرحلة تنتهي بمَعلم (Milestone) له خط مرجعي (Baseline) وتاريخ فعلي.
 
-| # | المرحلة | المسؤول عن الإدخال | قابلة لأن تكون «غير منطبقة»؟ |
+| # | المرحلة | المَعلم الذي يُغلقها | المسؤول (من `StaffRole`) | المصدر في الملف |
+| --- | --- | --- | --- | --- |
+| 1 | RF & Design | Site Release | Team Lead (Design & Acquisition)، RF Engineer، Acquisition Team | RF & Design، Acquisition، Permission Log |
+| 2 | PRE-CW | PRE-CW Completion | Team Lead (CW)، CW Engineer | Master: SOW، CW Procurement، CW Access، المسح والتحليل، CW DN |
+| 3 | ACTUAL CW | CW Completion | Team Lead (CW)، Site Engineer | Master: CW MOS، Tower Erection، Site Adaption |
+| 4 | RFI | Site RFI | Team Lead (CW)، Team Lead (GECOL)، Team Lead (Fiber) | Master: CW PAC، ‏GECOL، ‏HLC |
+| 5 | TE INSTALLATION | TE Completion | Team Lead (TE) | Master: TE Access، Survey، DN، MOS، Items |
+| 6 | ON-AIR | On-Air | Team Lead (TE)، MW Engineer | Master: Commissioning، Integration، Cutover |
+| 7 | TE PAC | TE PAC | Team Lead (TE) | Master: SSV، HWID، EIR، PAT، As-Built، Snags |
+| 8 | CLUSTER OPTIMIZATION | KPI Acceptance | RF Engineer | Master: Cluster ID، KPI Acceptance |
+| 9 | LAUNCH & HOTO | HOTO | Project Manager، Inventory Supervisor | Master: Launch، Material Reconciliation، HOTO Package |
+| 10 | FINAL CLOSURE | Final Closure | Project Manager | Master: CW DLP/FAC، TE DLP/FAC، الالتزامات التعاقدية |
+| — | DISMANTLE (مسار جانبي) | CW RN · TE RN | Team Lead (CW)، Team Lead (TE) | Master: CW / TE Dismantle |
+
+> هذا يصحح اقتراحي السابق (سبع مراحل وست بوابات). الملف فيه تسعة أعمدة `Phase Gate`، وهي «أعمدة البوابات التسعة» التي تذكرها الوثيقة الأصلية.
+
+### 3.2 البوابات التسع
+
+كل بوابة في الملف عمود `… Readiness` يسبق المرحلة التي يفتحها، وكلها فارغة اليوم. الشروط أدناه مأخوذة من أعمدة المرحلة السابقة في Master. **من يعتمد** كل بوابة اقتراح، لأن الملف لا يحدده.
+
+| البوابة (اسمها في الملف) | تفتح | الشرط: يكتمل أو يكون «غير منطبق» | يعتمدها (اقتراح) |
 | --- | --- | --- | --- |
-| 1 | RF والتصميم (المسح، TSSR) | مهندس RF / تصميم | لا |
-| 2 | الاستملاك والتصاريح (المرشحون، العقد، الإيجار، التصاريح) | مسؤول الاستملاك، مسؤول التصاريح | نعم جزئياً (موقع على أرض حكومية لا يحتاج إيجاراً) |
-| 3 | المشتريات وأوامر العمل (PR / PO / WO) | مسؤول المشتريات | لا |
-| 4 | الأعمال المدنية CW | مشرف موقع CW | نعم (برج قائم لا يحتاج أعمالاً مدنية) |
-| 5 | الطاقة والربط: مساران متوازيان GECOL و HLC | مسؤول GECOL، مسؤول HLC | **نعم، كل مسار مستقل** |
-| 6 | تركيب وتشغيل TE (EIR / PAT) حتى On Air | مشرف موقع TE | لا |
-| 7 | القبول والإغلاق (PAC، DLP، FAC) | مراقب الجودة | لا |
+| G1 · Pre-CW Readiness | PRE-CW | RF Survey Date، Acquisition Date (عقد موقّع + تصاريح معتمدة)، Site Release Date | Team Lead (Design & Acquisition) |
+| G2 · CW Readiness | ACTUAL CW | CW SOW محدد · PR · PO/WO · مقاول مُسند · CW Access · تقرير المسح والتحليل معتمد بنتيجة Pass أو Reinforce · CW DN معتمد | Team Lead (CW) |
+| G3 · RFI Readiness | RFI | CW MOS · بنود Tower Erection وSite Adaption كلها Done أو N/A · تاريخ انتهاء التركيب الفعلي | Team Lead (CW) |
+| G4 · TE Installation Readiness | TE INSTALLATION | CW PAC (الملاحظات مُغلقة، As-Built مُسلّم، تاريخ PAC) **و** GECOL منجز أو N/A **و** HLC منجز أو N/A | Project Manager |
+| G5 · On-Air Readiness | ON-AIR | TE Access · TE Survey · TE DN · TE MOS · بنود التركيب · تاريخ انتهاء التركيب الفعلي | Team Lead (TE) |
+| G6 · TE PAC Readiness | TE PAC | Commissioning · Integration · Cutover بنتيجة Success (للاستبدال فقط) · On-Air Actual Date | Team Lead (TE) |
+| G7 · Cluster Optimization Readiness | CLUSTER OPT. | SSV بنتيجة Pass · EIR (PWR/WL/MW/IP) · PAT · As-Built · الملاحظات مُغلقة · TE PAC | Project Manager |
+| G8 · HOTO Readiness | LAUNCH & HOTO | Cluster Optimization Date · KPI Acceptance بنتيجة Pass | RF Engineer |
+| G9 · Final Closure Readiness | FINAL CLOSURE | Launch Date · Material Reconciliation · HOTO Package | Project Manager |
 
-### 3.2 البوابات الست — شروط مقترحة
+ملاحظات:
 
-| البوابة | من → إلى | الشرط | يعتمدها |
-| --- | --- | --- | --- |
-| G1 | 1 → 2 | TSSR معتمد ومرفق | مهندس RF / تصميم |
-| G2 | 2 → 3 | مرشح مختار + عقد موقّع أو «غير منطبق» + تصاريح سارية | مسؤول الاستملاك |
-| G3 | 3 → 4 | PO صادر وأمر عمل مسند لمقاول | مسؤول المشتريات |
-| G4 | 4 → 5 | CW منجز، دون ملاحظات جودة حرجة مفتوحة | منسق المنطقة |
-| G5 | 5 → 6 | GECOL منجز **أو** غير منطبق، **و** HLC منجز **أو** غير منطبق | منسق المنطقة |
-| G6 | 6 → 7 | الموقع On Air + EIR / PAT موقّعة ومرفقة | مراقب الجودة |
+- **G4 هي نقطة التقاء المسارات.** RFI تجمع CW PAC وGECOL وHLC، وهذا ما يفسّر الخطر الحالي: الموقع ينتظر الكهرباء أو الألياف بعد اكتمال الأعمال المدنية.
+- **المرحلة 10 تُغلق بالزمن.** فترة DLP محسوبة من الإعدادات: 90 يوماً بعد CW PAC، و12 شهراً بعد TE PAC. لذلك يُحسب تاريخ FAC المتوقع آلياً ويولّد تنبيه «نهاية DLP».
+- **البيانات الحالية تعبر البوابات دون اعتماد.** مثال: 282 موقعاً لها On-Air Actual Date، و213 فقط لها TE PAC Actual Date، وأعمدة البوابات فارغة كلها. عند الترحيل تُعتمد البوابات المجتازة فعلاً بأثر رجعي باسم «ترحيل»، ولا تُختلق تواريخ اعتماد.
 
-إغلاق المرحلة 7 نفسها (FAC والإغلاق النهائي) يعتمده مدير المشروع.
-
-## 4. «غير منطبق» حالةٌ لا فراغ
+## 4. «غير منطبق» يحدده نطاق العمل
 
 ### 4.1 القاعدة
 
-كل مرحلة (وكل مسار داخل المرحلة 5) لها حالة صريحة من القائمة الموحدة:
+الملف يجيب عن هذا بوضوح: المرحلة أو البند لا يكون «غير منطبق» بقرار لحظي من الموظف، بل **يُستنتج من نطاق عمل الموقع** المحدد عند الإنشاء. الموظف لا يكتب `N/A` في أي حقل مرحلة.
 
-`مطلوب · جارٍ · منجز · غير منطبق · ملغى`
+| حقل النطاق | قيمته | ما يصبح «غير منطبق» تلقائياً |
+| --- | --- | --- |
+| Tower Erection | N/A | بنود Tower Foundation وSteel Erection وLightning & Grounding |
+| Site Adaption | N/A | بنود Cabinet Foundation وMounting Pole وCable Tray وIndoor Rack وOptical Fiber وAC/DC Box وSite GND |
+| Tower Erection **و** Site Adaption | كلاهما N/A | المرحلتان 2 و3 كاملتين (PRE-CW وACTUAL CW) و CW PAC وCW DLP/FAC |
+| GECOL Power | N/A | مسار GECOL في RFI |
+| HLC Fiber | N/A | مسار HLC في RFI |
+| TE SOW | IP Router Only | بنود MTS Cabinet وRF Antenna وMW Antenna، وEIR/PAT لـ WL وMW |
+| Delivery Scenario | New Build أو Expansion | Cutover كاملاً، والمسار الجانبي DISMANTLE |
+| Delivery Scenario | Hot Swap أو Cold Swap | لا شيء، فيدخل Cutover وDismantle |
+| CW Delivery Model | In-House | PR وPO/WO للأعمال المدنية |
+
+مثال من الملف: الموقع `BG001` نطاقه IP Router Only وIn-House، وكل بنود CW فيه `N/A`. في النظام لا يمر بالمرحلتين 2 و3 إطلاقاً، ويعبر G2 وG3 تلقائياً بحالة «غير منطبق».
+
+### 4.2 النتائج
 
 - البوابة تعامل «غير منطبق» معاملة «منجز».
-- «غير منطبق» **لا تُترك فارغة ولا تُستنتج**. يضعها صاحب المرحلة صراحةً مع سبب إلزامي، ويعتمدها مدير المشروع، لأنها تُسقط عملاً من النطاق كما يضيفه إنشاء موقع.
-- المرحلة غير المنطبقة لا يُجمَّد لها خط مرجعي، ولا تدخل حسابات التأخير، ولا تظهر في قوائم التقادم.
-- تُعرض في قمع الإنجاز منفصلة («عبر البوابة بالتجاوز») حتى لا تُضخّم نسب الإنجاز.
+- المراحل غير المنطبقة لا يُجمَّد لها خط مرجعي، ولا تدخل حسابات التأخير أو التقادم.
+- في قمع الإنجاز تُعرض منفصلة («عبر بالتجاوز») حتى لا تُضخّم النسب.
 
-### 4.2 متى تُحدَّد؟
+### 4.3 تغيير النطاق
 
-يمكن تحديدها في أي وقت قبل وصول الموقع إلى المرحلة. يُقترح أن يحدد المنسق عند إنشاء الموقع ما يعرفه مبكراً، مثل «برج قائم: CW غير منطبق»، فيعتمده مدير المشروع مع الموقع نفسه في خطوة واحدة.
+تغيير أي حقل نطاق بعد الاعتماد يمر **بطلب تغيير** من نوع `Scope Change` بدرجة `Site` أو `Part` أو `Field`، يعتمده مدير المشروع. عند الاعتماد:
 
-### 4.3 التراجع عنها
-
-إن تبيّن لاحقاً أن مرحلة «غير منطبقة» مطلوبة فعلاً، تعود إلى «مطلوب» بطلب تعديل مسجل، ويُجمَّد لها خط مرجعي من تاريخ العودة. إن كان الموقع قد تجاوزها، لا يعود إلى الخلف، بل يُفتح لها مسار موازٍ تشترطه البوابة التالية التي لم تُعتمد بعد.
+- البند الذي **أصبح منطبقاً**: إن كان الموقع لم يتجاوز بوابته بعد، يُضاف للمرحلة بخط مرجعي من تاريخ الاعتماد. وإن كان قد تجاوزها، يُفتح بنداً معلقاً تشترطه أول بوابة لم تُعتمد بعد، ولا يعود الموقع إلى الخلف.
+- البند الذي **أصبح غير منطبق**: يُغلق بحالة «غير منطبق»، وتبقى بياناته السابقة في سجل التدقيق.
 
 ## 5. انعكاس ذلك على نموذج البيانات
 
 ```sql
--- الموقع: سجل الهوية فقط، بلا أي بيانات مراحل
-CREATE TABLE site (
-  id              bigserial PRIMARY KEY,
-  project_id      bigint      NOT NULL REFERENCES project(id),
-  code            text        NOT NULL,
-  name_ar         text        NOT NULL,
-  region_id       bigint      NOT NULL REFERENCES region(id),
-  site_type_id    bigint      NOT NULL REFERENCES site_type(id),
-  tower_type_id   bigint      NOT NULL REFERENCES tower_type(id),
-  latitude        numeric(9,6) NOT NULL,
-  longitude       numeric(9,6) NOT NULL,
-  justification   text        NOT NULL,
-  status          text        NOT NULL DEFAULT 'draft'
-                  CHECK (status IN ('draft','pending_approval','approved','rejected','cancelled')),
-  created_by      bigint      NOT NULL REFERENCES app_user(id),
-  approved_by     bigint      REFERENCES app_user(id),
-  approved_at     timestamptz,
-  status_reason   text,
-  UNIQUE (project_id, code),
-  UNIQUE (project_id, latitude, longitude),
-  CHECK (code = upper(btrim(code))),
-  CHECK (code ~ '^[A-Z]{3}-[0-9]{4}$')          -- يُعدَّل بعد اعتماد الصيغة
+-- عدد المواقع المتعاقد عليه لكل مرحلة مشروع (tblProjectScope)
+CREATE TABLE project_scope (
+  project_id     bigint NOT NULL REFERENCES project(id),
+  project_phase  text   NOT NULL,             -- PH1 / PH2
+  contract_sites integer NOT NULL CHECK (contract_sites >= 0),
+  reference      text,
+  approved_date  date,
+  PRIMARY KEY (project_id, project_phase)
 );
 
--- حالة كل مرحلة لكل موقع
+-- بادئة الرمز جزء من تعريف المنطقة
+ALTER TABLE region ADD COLUMN site_code_prefix text UNIQUE
+  CHECK (site_code_prefix ~ '^[A-Z]{2}$');      -- TR, MI, SB, GM, WM, BG, ZW
+
+-- الموقع: الهوية + النطاق، بلا أي بيانات مراحل
+CREATE TABLE site (
+  id               bigserial PRIMARY KEY,
+  project_id       bigint  NOT NULL REFERENCES project(id),
+  region_id        bigint  NOT NULL REFERENCES region(id),
+  serial_no        integer NOT NULL CHECK (serial_no BETWEEN 1 AND 999),
+  suffix           char(1) CHECK (suffix ~ '^[A-Z]$'),
+  code             text    NOT NULL,          -- يُولّد: prefix || lpad(serial) || coalesce(' ' || suffix, '')
+  replaces_site_id bigint  REFERENCES site(id),   -- إلزامي إذا وُجدت لاحقة
+  owner_site_id    text,                      -- Site Owner ID
+  name_ar          text    NOT NULL,
+  sub_region_id    bigint  NOT NULL REFERENCES sub_region(id),
+  latitude         numeric(10,7) NOT NULL CHECK (latitude  BETWEEN 19.5 AND 33.5),
+  longitude        numeric(10,7) NOT NULL CHECK (longitude BETWEEN  9.3 AND 25.2),
+  site_type_id     bigint  NOT NULL REFERENCES site_type(id),
+  site_scenario_id bigint  NOT NULL REFERENCES site_scenario(id),
+  uplink_site_id   bigint  REFERENCES site(id),
+  tower_owner_id   bigint  NOT NULL REFERENCES tower_owner(id),
+  existing_or_new  text    NOT NULL CHECK (existing_or_new IN ('existing','new','na')),
+  rt_or_gf         text    NOT NULL CHECK (rt_or_gf IN ('rt','gf','na')),
+  tower_type_id    bigint  NOT NULL REFERENCES tower_type(id),
+  tower_height_m   numeric(5,1) CHECK (tower_height_m > 0),
+  -- نطاق العمل: يحدد ما هو «غير منطبق»
+  project_phase    text    NOT NULL,
+  delivery_batch   text,
+  delivery_scenario text   NOT NULL CHECK (delivery_scenario IN
+                     ('new_build','expansion','hot_swap','cold_swap','relocation')),
+  sow_tower_erection boolean NOT NULL,
+  sow_site_adaption  boolean NOT NULL,
+  sow_gecol_power    boolean NOT NULL,
+  sow_hlc_fiber      boolean NOT NULL,
+  sow_te             text    NOT NULL CHECK (sow_te IN ('full_scope','ip_router_only')),
+  cw_delivery_model  text    NOT NULL CHECK (cw_delivery_model IN ('in_house','outsourced')),
+  -- الحالة والاعتماد
+  status           text NOT NULL DEFAULT 'draft' CHECK (status IN
+                     ('draft','pending_review','pending_approval','approved','rejected','cancelled')),
+  justification    text NOT NULL,
+  created_by       bigint NOT NULL REFERENCES app_user(id),
+  reviewed_by      bigint REFERENCES app_user(id),
+  approved_by      bigint REFERENCES app_user(id),
+  approved_at      timestamptz,
+  UNIQUE (project_id, code),
+  UNIQUE (project_id, region_id, serial_no, suffix),
+  CHECK ((suffix IS NULL) = (replaces_site_id IS NULL)),
+  FOREIGN KEY (project_id, project_phase) REFERENCES project_scope(project_id, project_phase)
+);
+-- تطابق الإحداثيات يُرفض إلا للموقع البديل
+CREATE UNIQUE INDEX site_coords_uq ON site (project_id, latitude, longitude)
+  WHERE replaces_site_id IS NULL AND status <> 'cancelled';
+
+-- حالة كل مرحلة / بند لكل موقع
 CREATE TABLE site_stage (
-  site_id         bigint NOT NULL REFERENCES site(id),
-  stage_id        bigint NOT NULL REFERENCES stage_definition(id),  -- قالب المراحل قابل للتعريف لكل مشروع
-  track           text   NOT NULL DEFAULT 'main',                  -- 'gecol' / 'hlc' في المرحلة 5
-  status          text   NOT NULL DEFAULT 'required'
-                  CHECK (status IN ('required','in_progress','done','not_applicable','cancelled')),
-  status_reason   text,
-  baseline_date   date,          -- يُجمَّد عند الدخول، لا يتغير إلا بإعادة خط مرجعي موثقة
-  actual_date     date,
+  site_id          bigint NOT NULL REFERENCES site(id),
+  stage_id         bigint NOT NULL REFERENCES stage_definition(id),   -- العشر + DISMANTLE، من قالب المشروع
+  track            text   NOT NULL DEFAULT 'main',                    -- 'gecol' / 'hlc' في RFI، 'cw' / 'te' في DISMANTLE
+  status           text   NOT NULL DEFAULT 'required' CHECK (status IN
+                     ('required','in_progress','done','not_applicable','cancelled')),
+  na_source        text   CHECK (na_source IN ('scope','scope_change')), -- «غير منطبق» يأتي من النطاق فقط
+  baseline_date    date,
+  actual_date      date,
   gate_approved_by bigint REFERENCES app_user(id),
   gate_approved_at timestamptz,
+  gate_approval_kind text CHECK (gate_approval_kind IN ('normal','auto_na','migration')),
   PRIMARY KEY (site_id, stage_id, track),
-  CHECK (status <> 'done'           OR actual_date   IS NOT NULL),
-  CHECK (status <> 'not_applicable' OR (status_reason IS NOT NULL AND baseline_date IS NULL))
+  CHECK (status <> 'done'           OR actual_date IS NOT NULL),
+  CHECK ((status = 'not_applicable') = (na_source IS NOT NULL)),
+  CHECK (status <> 'not_applicable' OR baseline_date IS NULL)
 );
 ```
 
-ملاحظات:
+ملاحظات التنفيذ:
 
-- قيد التفرد على الإحداثيات يمنع التطابق التام فقط. فحص القرب (50 متراً) يتم في التطبيق، أو بامتداد PostGIS إن اعتُمد.
-- يُنشئ اعتماد الموقع صفوف `site_stage` كلها دفعة واحدة من قالب مراحل المشروع، فلا يُنسى مسار.
-- ضوابط المنطقة (المنسق لا يُنشئ إلا في منطقته) وتسلسل الاعتماد تُفرض في طبقة الصلاحيات، وتُسجَّل في سجل التدقيق.
+- **قواعد الانطباق** (الجدول 4.1) تُخزَّن كجدول `stage_applicability_rule` مرتبط بقالب المشروع، لا كشروط مكتوبة في الكود. مشروع رولآوت آخر يعرّف قواعده دون برمجة.
+- **عند اعتماد الموقع** يُنشئ النظام صفوف `site_stage` كلها دفعة واحدة، ويضع «غير منطبق» حيث يقتضي النطاق.
+- **فحص القرب (50 متراً)** في التطبيق، أو بامتداد PostGIS إن اعتُمد.
+- **حدود الإحداثيات** تقريبية لحدود ليبيا الكاملة. حدود كل منطقة على حدة تُضاف لاحقاً إن توفرت.
 
-## 6. قرارات ما زالت مطلوبة
+## 6. ما زال مطلوباً
 
-- [ ] صيغة رمز الموقع الفعلية في GSDN.
-- [ ] تأكيد أسماء المراحل السبع وترتيبها (الجدول 3.1).
-- [ ] تأكيد شروط البوابات الست ومن يعتمد كلاً منها (الجدول 3.2).
-- [ ] نصف قطر تحذير التكرار بالإحداثيات (المقترح 50 متراً).
-- [ ] هل يحتاج «غير منطبق» اعتماد مدير المشروع في كل الحالات، أم يكفي صاحب المرحلة في المراحل الفرعية؟
+- [ ] **معنى اللاحقة `A`** في الـ 35 موقعاً: نقل (`Relocation`)؟ بديل مرشح؟ توسعة؟ التصميم أعلاه يفترض «موقع بديل مرتبط بموقع أصلي».
+- [ ] **من يعتمد كل بوابة**: الملف لا يحدده، والعمود الأخير في الجدول 3.2 اقتراح.
+- [ ] **دور منسق المنطقة**: هل يُستحدث (غير موجود في `StaffRole`)؟ أم يبقى الإنشاء عند فريق التصميم كما في الملف؟
+- [ ] **حسم المواقع الستة الشاردة** قبل الترحيل: `BG011` و`BG058` و`BG077` و`BG078` و`TR103` و`New Site` (`SRM008`، الزاوية).
+- [ ] **قائمة `Project Staff` فارغة** في Setting، ويلزم ملؤها بالأسماء والأدوار قبل إسناد أي مرحلة.
