@@ -135,19 +135,44 @@
 
 ### 3.2 البوابات التسع
 
-كل بوابة في الملف عمود `… Readiness` يسبق المرحلة التي يفتحها، وكلها فارغة اليوم. الشروط أدناه مأخوذة من أعمدة المرحلة السابقة في Master. **من يعتمد** كل بوابة اقتراح، لأن الملف لا يحدده.
+كل بوابة في الملف عمود `… Readiness` يسبق المرحلة التي يفتحها، وكلها فارغة اليوم. الشروط أدناه مأخوذة من أعمدة المرحلة السابقة في Master.
 
-| البوابة (اسمها في الملف) | تفتح | الشرط: يكتمل أو يكون «غير منطبق» | يعتمدها (اقتراح) |
+| البوابة (اسمها في الملف) | تفتح | الشرط: يكتمل أو يكون «غير منطبق» | الصلاحية |
 | --- | --- | --- | --- |
-| G1 · Pre-CW Readiness | PRE-CW | RF Survey Date، Acquisition Date (عقد موقّع + تصاريح معتمدة)، Site Release Date | Team Lead (Design & Acquisition) |
-| G2 · CW Readiness | ACTUAL CW | CW SOW محدد · PR · PO/WO · مقاول مُسند · CW Access · تقرير المسح والتحليل معتمد بنتيجة Pass أو Reinforce · CW DN معتمد | Team Lead (CW) |
-| G3 · RFI Readiness | RFI | CW MOS · بنود Tower Erection وSite Adaption كلها Done أو N/A · تاريخ انتهاء التركيب الفعلي | Team Lead (CW) |
-| G4 · TE Installation Readiness | TE INSTALLATION | CW PAC (الملاحظات مُغلقة، As-Built مُسلّم، تاريخ PAC) **و** GECOL منجز أو N/A **و** HLC منجز أو N/A | Project Manager |
-| G5 · On-Air Readiness | ON-AIR | TE Access · TE Survey · TE DN · TE MOS · بنود التركيب · تاريخ انتهاء التركيب الفعلي | Team Lead (TE) |
-| G6 · TE PAC Readiness | TE PAC | Commissioning · Integration · Cutover بنتيجة Success (للاستبدال فقط) · On-Air Actual Date | Team Lead (TE) |
-| G7 · Cluster Optimization Readiness | CLUSTER OPT. | SSV بنتيجة Pass · EIR (PWR/WL/MW/IP) · PAT · As-Built · الملاحظات مُغلقة · TE PAC | Project Manager |
-| G8 · HOTO Readiness | LAUNCH & HOTO | Cluster Optimization Date · KPI Acceptance بنتيجة Pass | RF Engineer |
-| G9 · Final Closure Readiness | FINAL CLOSURE | Launch Date · Material Reconciliation · HOTO Package | Project Manager |
+| G1 · Pre-CW Readiness | PRE-CW | RF Survey Date، Acquisition Date (عقد موقّع + تصاريح معتمدة)، Site Release Date | `gate.approve.G1` |
+| G2 · CW Readiness | ACTUAL CW | CW SOW محدد · PR · PO/WO · مقاول مُسند · CW Access · تقرير المسح والتحليل معتمد بنتيجة Pass أو Reinforce · CW DN معتمد | `gate.approve.G2` |
+| G3 · RFI Readiness | RFI | CW MOS · بنود Tower Erection وSite Adaption كلها Done أو N/A · تاريخ انتهاء التركيب الفعلي | `gate.approve.G3` |
+| G4 · TE Installation Readiness | TE INSTALLATION | CW PAC (الملاحظات مُغلقة، As-Built مُسلّم، تاريخ PAC) **و** GECOL منجز أو N/A **و** HLC منجز أو N/A | `gate.approve.G4` |
+| G5 · On-Air Readiness | ON-AIR | TE Access · TE Survey · TE DN · TE MOS · بنود التركيب · تاريخ انتهاء التركيب الفعلي | `gate.approve.G5` |
+| G6 · TE PAC Readiness | TE PAC | Commissioning · Integration · Cutover بنتيجة Success (للاستبدال فقط) · On-Air Actual Date | `gate.approve.G6` |
+| G7 · Cluster Optimization Readiness | CLUSTER OPT. | SSV بنتيجة Pass · EIR (PWR/WL/MW/IP) · PAT · As-Built · الملاحظات مُغلقة · TE PAC | `gate.approve.G7` |
+| G8 · HOTO Readiness | LAUNCH & HOTO | Cluster Optimization Date · KPI Acceptance بنتيجة Pass | `gate.approve.G8` |
+| G9 · Final Closure Readiness | FINAL CLOSURE | Launch Date · Material Reconciliation · HOTO Package | `gate.approve.G9` |
+
+### 3.3 من يعتمد البوابة: صاحب الصلاحية
+
+**القرار:** يعتمد البوابة من يملك صلاحية اعتمادها. لا يرتبط الاعتماد في النظام باسم دور ثابت.
+
+- **لكل بوابة صلاحية مستقلة** (`gate.approve.G1` … `gate.approve.G9`). تُمنح من شاشة الإعدادات لدور أو لشخص، ولا تُكتب في الكود. تغيير من يعتمد بوابةً قرار إداري لا يحتاج برمجة.
+- **الصلاحية تخضع للنطاق كبقية الصلاحيات** (الدور × النطاق × المرحلة). من يملك `gate.approve.G4` على منطقة طرابلس لا يعتمد G4 لموقع في سبها.
+- **النيابة المؤقتة تشمل الاعتماد.** يمكن تفويض صلاحية بوابة بتاريخ انتهاء أثناء الإجازات، كما في الوثيقة الأصلية، فلا يتوقف الموقع لغياب شخص.
+- **الصلاحية لا تتجاوز الشرط.** حتى صاحب الصلاحية لا يعتمد بوابة لم تكتمل شروطها. زر الاعتماد لا يظهر قبل أن يصبح الشرط محققاً.
+- **إن لم يملك أحد الصلاحية** على نطاق موقع ما، يظهر ذلك في تقرير جودة البيانات بوصفه «بوابة بلا معتمِد»، قبل أن يعلق موقع فعلاً.
+- **كل اعتماد يُسجَّل** باسم المعتمِد ووقته والصلاحية التي اعتمد بها (أصلية أو نيابة) في سجل التدقيق.
+- **البوابات المعبورة بالتجاوز** («غير منطبق» بحكم النطاق) لا تحتاج معتمِداً، وتُسجَّل باسم النظام.
+
+**توزيع ابتدائي** يُحمَّل مع قالب GSDN ويُعدَّل من الإعدادات:
+
+| الصلاحية | تُمنح افتراضياً لـ |
+| --- | --- |
+| G1 | Team Lead (Design & Acquisition) |
+| G2، G3 | Team Lead (CW) |
+| G4 | Project Manager |
+| G5، G6 | Team Lead (TE) |
+| G7 | Project Manager |
+| G8 | RF Engineer |
+| G9 | Project Manager |
+| الكل | Project Manager (احتياطي) |
 
 ملاحظات:
 
@@ -273,6 +298,27 @@ CREATE TABLE site_stage (
   CHECK ((status = 'not_applicable') = (na_source IS NOT NULL)),
   CHECK (status <> 'not_applicable' OR baseline_date IS NULL)
 );
+
+-- صلاحية اعتماد البوابة: تُمنح لدور أو لشخص، على نطاق، وقد تكون نيابة مؤقتة
+CREATE TABLE permission_grant (
+  id            bigserial PRIMARY KEY,
+  project_id    bigint NOT NULL REFERENCES project(id),
+  permission    text   NOT NULL,                 -- 'gate.approve.G1' … 'gate.approve.G9'
+  role_id       bigint REFERENCES role(id),
+  user_id       bigint REFERENCES app_user(id),
+  region_id     bigint REFERENCES region(id),    -- NULL = المشروع كاملاً
+  site_id       bigint REFERENCES site(id),      -- إسناد بموقع بعينه
+  delegated_from bigint REFERENCES app_user(id), -- نيابة مؤقتة
+  valid_from    date   NOT NULL DEFAULT current_date,
+  valid_to      date,                            -- إلزامي للنيابة
+  CHECK ((role_id IS NULL) <> (user_id IS NULL)),
+  CHECK (delegated_from IS NULL OR (user_id IS NOT NULL AND valid_to IS NOT NULL))
+);
+
+ALTER TABLE site_stage
+  ADD COLUMN gate_grant_id bigint REFERENCES permission_grant(id),  -- الصلاحية التي اعتُمد بها
+  ADD CONSTRAINT gate_grant_required
+    CHECK (gate_approval_kind IS DISTINCT FROM 'normal' OR gate_grant_id IS NOT NULL);
 ```
 
 ملاحظات التنفيذ:
@@ -285,7 +331,8 @@ CREATE TABLE site_stage (
 ## 6. ما زال مطلوباً
 
 - [ ] **معنى اللاحقة `A`** في الـ 35 موقعاً: نقل (`Relocation`)؟ بديل مرشح؟ توسعة؟ التصميم أعلاه يفترض «موقع بديل مرتبط بموقع أصلي».
-- [ ] **من يعتمد كل بوابة**: الملف لا يحدده، والعمود الأخير في الجدول 3.2 اقتراح.
+- [x] **من يعتمد كل بوابة**: من يملك صلاحية اعتمادها، وتُدار من الإعدادات (البند 3.3).
+- [ ] **التوزيع الابتدائي للصلاحيات** في البند 3.3: هل يُعتمد كما هو؟
 - [ ] **دور منسق المنطقة**: هل يُستحدث (غير موجود في `StaffRole`)؟ أم يبقى الإنشاء عند فريق التصميم كما في الملف؟
 - [ ] **حسم المواقع الستة الشاردة** قبل الترحيل: `BG011` و`BG058` و`BG077` و`BG078` و`TR103` و`New Site` (`SRM008`، الزاوية).
 - [ ] **قائمة `Project Staff` فارغة** في Setting، ويلزم ملؤها بالأسماء والأدوار قبل إسناد أي مرحلة.
