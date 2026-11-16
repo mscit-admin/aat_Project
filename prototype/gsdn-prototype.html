@@ -224,7 +224,7 @@ const DEFAULT_GRANTS = {
 /* ====================== الحالة المحلية ====================== */
 const KEY='gsdn-prototype-v1';
 let S = load();
-function fresh(){ return {user:'pm', ov:{}, appr:{}, unlock:{}, issues:{}, requests:[], changes:[], audit:[], notif:[],
+function fresh(){ return {user:'pm', ov:{}, appr:{}, unlock:{}, issues:{}, requests:[], changes:[], audit:[], notif:[], imports:[], cutover:TODAY_S, windowDays:60,
   grants:JSON.parse(JSON.stringify(DEFAULT_GRANTS)), contract:{PH1:480, PH2:0}, seq:1}; }
 function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.grants) return Object.assign(fresh(),s);}catch(e){} return fresh(); }
 function save(){ localStorage.setItem(KEY,JSON.stringify(S)); CACHE.clear(); }
@@ -278,10 +278,14 @@ function scopeNA(s,c){
   return null;
 }
 function rawVal(s,c){ const o=S.ov[s.id]?.[c]; if(o) return o.st==='done'?o.d:(o.st==='wip'?'جارٍ':null); return s.v[c]; }
+const STATUS_ONLY=new Set([43,53,54,55,56,57,58,59,60,61,62,72,73,75,76,89,90,91,92,93,110,138]);
+const TEXT_ITEMS=new Set([36]);
+const itemKind=c=>TEXT_ITEMS.has(c)?'text':STATUS_ONLY.has(c)?'status':'date';
 function itemState(s,c){
   const why=scopeNA(s,c); if(why) return {st:'na', why, val:'غير منطبق'};
   const o=S.ov[s.id]?.[c];
-  if(o) return {st:o.st==='done'?'done':o.st==='wip'?'wip':'pending', val:o.st==='done'?o.d:o.st==='wip'?'جارٍ':'مطلوب', date:o.st==='done'?o.d:null, edited:true};
+  if(o){ const st=o.st==='done'?'done':o.st==='wip'?'wip':'pending';
+    return {st, val:o.txt?o.txt:st==='done'?(o.d||'Done'):st==='wip'?'جارٍ':'مطلوب', date:st==='done'?(o.d||null):null, edited:true, fill:!!o.fill, src:o.src}; }
   const v=s.v[c];
   if(v==null) return {st:'pending', val:'—'};
   if(isDate(v)) return {st:'done', val:v, date:v};
@@ -339,7 +343,7 @@ function curLabel(m){ if(m.cancelled) return '<span class="pill p-bad">ملغى<
 
 /* ====================== الهيكل والتنقل ====================== */
 const NAV = [
-  ['dashboard','لوحة المتابعة'],['sites','المواقع'],['new','إضافة موقع'],['tasks','مهامي'],
+  ['dashboard','لوحة المتابعة'],['sites','المواقع'],['new','إضافة موقع'],['import','استيراد Excel'],['tasks','مهامي'],
   ['quality','جودة البيانات'],['settings','الصلاحيات والإعدادات'],['about','حول النموذج'],
 ];
 function myTasks(){
@@ -360,6 +364,7 @@ function renderNav(){
   const t=myTasks(); const cnt=t.req.length+t.changes.length+t.gates.length;
   document.getElementById('nav').innerHTML = NAV.map(([k,l])=>{
     if(k==='new' && !can('site.create')) return '';
+    if(k==='import' && !ownedStages().length) return '';
     const b = k==='tasks'&&cnt ? `<span class="badge">${cnt>99?'99+':cnt}</span>`:'';
     return `<a href="#/${k}" class="${route===k||(k==='sites'&&route==='site')?'on':''}">${l}${b}</a>`;
   }).join('') + `<div class="sep"></div><div class="who">الدور: ${esc(ROLES[me().role])}</div>
@@ -370,7 +375,7 @@ function route(){
   const arg=decodeURIComponent(rest.join('/'));
   renderNav();
   const main=document.getElementById('main');
-  const views={dashboard:vDashboard, sites:vSites, site:vSite, new:vNew, tasks:vTasks, quality:vQuality, settings:vSettings, about:vAbout};
+  const views={dashboard:vDashboard, sites:vSites, site:vSite, new:vNew, tasks:vTasks, import:vImport, quality:vQuality, settings:vSettings, about:vAbout};
   main.innerHTML = (views[r]||vDashboard)(arg);
   window.scrollTo(0,0);
   (AFTER.shift()||(()=>{}))();
@@ -555,14 +560,14 @@ function stagePanel(m,i){
      <span class="right small muted">يُغلقها المَعلم: <span class="ltr">${esc(g.ms)}</span></span></div>
    <div class="small muted" style="margin:4px 0 10px">مالك الإدخال: ${ownerNames}</div>
    ${x.status==='na'?`<div class="note">المرحلة كاملة «غير منطبقة» بحكم نطاق العمل (لا أعمال مدنية). البوابة تتجاوزها آلياً دون معتمِد، ولا يُجمَّد لها خط مرجعي.</div>`:''}
-   ${locked?`<div class="note ok">المرحلة منجزة بتاريخ ${ltr(x.date||'—')} ${x.kind==='approved'?`· اعتمدها ${esc(x.appr.by)}`:'· «ترحيل» من الملف'}. الحقول مقفلة ولا تُفتح إلا بطلب تعديل مسجل بسبب.
+   ${locked?`<div class="note ok">المرحلة منجزة بتاريخ ${ltr(x.date||'—')} ${x.kind==='approved'?`· اعتمدها ${esc(x.appr.by)}`:'· «ترحيل» من الملف'}. الحقول مقفلة ولا تُفتح إلا بطلب تعديل مسجل بسبب.${x.kind==='migration'&&windowOpen()?`<div style="margin-top:4px"><b>فترة الاستكمال مفتوحة</b> (متبقٍ ${windowLeft()} يوماً): الحقول الفارغة في الملف تُملأ مباشرة بزر «استكمال»، أما تغيير قيمة موجودة فبطلب تعديل.</div>`:''}
       <div style="margin-top:6px"><button class="btn sm" onclick="requestChange('${esc(m.s.id)}',${i})">طلب تعديل</button></div></div>`:''}
    <table class="items"><tr><th style="width:26px"></th><th>البند</th><th>القيمة</th><th>المالك</th><th></th></tr>
    ${x.items.map(it=>`<tr><td><span class="ic ${it.st}">${({done:'✓',na:'–',pending:'○',wip:'◐',fail:'✕',cancelled:'✕'})[it.st]}</span></td>
       <td>${esc(it.l)}<div class="small muted mono">Master col ${it.c}</div></td>
-      <td>${it.st==='na'?`<span class="pill p-na" title="${esc(it.why||'')}">غير منطبق</span><div class="small muted">${esc(it.why||'')}</div>`:`<span class="${isDate(it.val)?'mono':''}">${esc(it.val)}</span>${it.edited?' <span class="pill p-info">معدّل</span>':''}`}</td>
+      <td>${it.st==='na'?`<span class="pill p-na" title="${esc(it.why||'')}">غير منطبق</span><div class="small muted">${esc(it.why||'')}</div>`:`<span class="${isDate(it.val)?'mono':''}">${esc(it.val)}</span>${it.edited?` <span class="pill ${it.fill?'p-warn':'p-info'}">${it.fill?'استكمال ترحيل':it.src==='import'?'استيراد Excel':'معدّل'}</span>`:''}`}</td>
       <td class="small muted">${it.own.map(r=>esc(ROLES[r])).join('، ')}</td>
-      <td>${canEditItem(m,i,it)?`<button class="btn sm" onclick="editItem('${esc(m.s.id)}',${i},${it.c})">تحديث</button>`:''}</td></tr>`).join('')}
+      <td>${canEditItem(m,i,it)?`<button class="btn sm" onclick="editItem('${esc(m.s.id)}',${i},${it.c})">تحديث</button>`:canFill(m,i,it)?`<button class="btn sm" style="border-color:#f7c08a" onclick="editItem('${esc(m.s.id)}',${i},${it.c},true)">استكمال</button>`:''}</td></tr>`).join('')}
    </table>
    ${g.msCol?`<div class="small muted" style="margin-top:8px">المَعلم في الملف: عمود ${g.msCol} = ${ltr(x.msDate||'فارغ')}</div>`:''}`;
 }
@@ -595,25 +600,56 @@ function nextGate(m,i){
 /* ====================== إجراءات ====================== */
 function modal(html){ document.getElementById('modalRoot').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
 function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
-function editItem(id,i,c){
-  const s=BYID.get(id); const it=model(s).st[i].items.find(y=>y.c===c);
-  modal(`<h2>تحديث: ${esc(it.l)}</h2><p class="small muted">الحالة والتاريخ حقلان منفصلان. التاريخ مطلوب فقط عند «منجز».</p>
+function prevStageDate(m,i){ for(let j=i-1;j>=0;j--){ const y=m.st[j]; if(y.status==='na') continue; return (y.status==='done'&&y.date)?{d:y.date,n:y.g.n}:null; } return null; }
+/* قواعد الحقل: الحالة منفصلة عن التاريخ، والتاريخ لا يسبق إنجاز المرحلة السابقة */
+function validateItem(m,i,c,st,d,txt,fill){
+  const k=itemKind(c), errs=[], warns=[];
+  if(!['done','wip','req'].includes(st)) errs.push('حالة غير معروفة');
+  if(k==='text'){ if(st==='done'&&!txt) errs.push('القيمة مطلوبة'); return {errs,warns}; }
+  if(k==='date'){
+    if(st==='done'&&!d) errs.push('الحالة «منجز» تتطلب تاريخاً');
+    if(d&&st!=='done') errs.push('التاريخ يُدخل فقط مع الحالة «منجز»');
+  }
+  if(d){
+    if(!isDate(d)) errs.push('صيغة التاريخ غير صحيحة');
+    else if(d>TODAY_S) errs.push('تاريخ في المستقبل');
+    else if(d<'2020-01-01') errs.push('تاريخ قبل 2020-01-01');
+    else { const p=prevStageDate(m,i); if(p&&d<p.d) (fill?warns:errs).push(`التاريخ ${d} يسبق إنجاز المرحلة السابقة ${p.n} (${p.d})`); }
+  }
+  if(fill&&st!=='done') errs.push('الاستكمال يكون بقيمة منجزة فقط');
+  return {errs,warns};
+}
+function windowLeft(){ return S.windowDays - days(S.cutover); }
+function windowOpen(){ return windowLeft() >= 0; }
+const isBlankRaw = v => v==null || v==='Pending';
+function canFill(m,i,it){
+  const x=m.st[i]; const o=S.ov[m.s.id]?.[it.c];
+  return windowOpen() && !m.cancelled && x.status==='done' && x.kind==='migration' && it.st==='pending'
+    && isBlankRaw(m.s.v[it.c]) && (!o||o.fill) && it.own.includes(me().role) && inScope(m.s);
+}
+function editItem(id,i,c,fill){
+  const s=BYID.get(id), m=model(s), it=m.st[i].items.find(y=>y.c===c), k=itemKind(c);
+  modal(`<h2>${fill?'استكمال':'تحديث'}: ${esc(it.l)}</h2>
+   <p class="small muted">${fill?'المرحلة مقفلة («ترحيل») والحقل فارغ في الملف. فترة الاستكمال تسمح بملئه دون طلب تعديل، ويُسجَّل بوسم «استكمال ترحيل».':k==='date'?'الحالة والتاريخ حقلان منفصلان. التاريخ مطلوب فقط عند «منجز»، ولا يسبق تاريخ إنجاز المرحلة السابقة.':k==='text'?'حقل نصي.':'بند حالة بلا تاريخ.'}</p>
    <div class="form" style="grid-template-columns:1fr 1fr">
-    <label class="f"><span class="req">الحالة</span><select id="m_st"><option value="req">مطلوب</option><option value="wip">جارٍ</option><option value="done">منجز</option></select></label>
-    <label class="f"><span>التاريخ</span><input type="date" id="m_d" max="${TODAY_S}" min="2020-01-01"></label></div>
+    <label class="f"><span class="req">الحالة</span><select id="m_st" ${fill?'disabled':''}><option value="req">مطلوب</option><option value="wip">جارٍ</option><option value="done">منجز</option></select></label>
+    ${k==='date'?`<label class="f"><span>التاريخ</span><input type="date" id="m_d" max="${TODAY_S}" min="2020-01-01"></label>`:''}
+    ${k==='text'?`<label class="f"><span>القيمة</span><input id="m_t"></label>`:''}</div>
    <div id="m_err" class="note bad" style="display:none"></div>
    <div class="row" style="margin-top:14px"><button class="btn pri" id="m_ok">حفظ</button><button class="btn" onclick="closeModal()">إلغاء</button></div>`);
-  const stSel=document.getElementById('m_st'); stSel.value=it.st==='done'?'done':it.st==='wip'?'wip':'req';
-  if(it.date) document.getElementById('m_d').value=it.date;
+  const stSel=document.getElementById('m_st'); stSel.value=fill?'done':it.st==='done'?'done':it.st==='wip'?'wip':'req';
+  const dEl=document.getElementById('m_d'), tEl=document.getElementById('m_t');
+  if(dEl&&it.date) dEl.value=it.date; if(tEl&&it.st==='done') tEl.value=it.val;
   document.getElementById('m_ok').onclick=()=>{
-    const st=stSel.value, d=document.getElementById('m_d').value;
-    const err=document.getElementById('m_err');
-    if(st==='done' && !d){ err.style.display='block'; err.textContent='الحالة «منجز» تتطلب تاريخاً.'; return; }
-    if(d && (d>TODAY_S || d<'2020-01-01')){ err.style.display='block'; err.textContent='التاريخ خارج النطاق المسموح (2020-01-01 حتى اليوم).'; return; }
-    const before=it.val;
-    (S.ov[id]=S.ov[id]||{})[c]={st, d:st==='done'?d:null};
-    audit(id,`تحديث «${it.l}»`,`${before} ← ${st==='done'?d:st==='wip'?'جارٍ':'مطلوب'}`);
-    closeModal(); rerender(); toast('حُفظ التعديل وسُجّل في سجل التدقيق');
+    const st=stSel.value, d=dEl&&dEl.value?dEl.value:null, txt=tEl?tEl.value.trim():'';
+    const v=validateItem(m,i,c,st,d,txt,fill), err=document.getElementById('m_err');
+    if(v.errs.length){ err.style.display='block'; err.innerHTML=v.errs.map(esc).join('<br>'); return; }
+    if(v.warns.length && !confirm('تنبيه: '+v.warns.join('\n')+'\nحفظ على أي حال؟')) return;
+    const o={st, d:st==='done'?d:null}; if(txt) o.txt=txt; if(fill) o.fill=true;
+    const nv=o.txt||(st==='done'?(d||'Done'):st==='wip'?'جارٍ':'مطلوب');
+    (S.ov[id]=S.ov[id]||{})[c]=o;
+    audit(id,`${fill?'استكمال ترحيل':'تحديث'} «${it.l}»`,`${it.val} ← ${nv}`);
+    closeModal(); rerender(); toast(fill?'استُكمل الحقل بوسم «استكمال ترحيل»':'حُفظ التعديل وسُجّل في سجل التدقيق');
   };
 }
 function approveGate(id,i){
@@ -868,6 +904,9 @@ function vQuality(){
   const noScope=ms.filter(m=>m.scopeMissing), noSr=ms.filter(m=>!m.s.sr);
   const gatesNoHolder=['G1','G2','G3','G4','G5','G6','G7','G8','G9','close.approve'].filter(p=>!(S.grants[p]||[]).length);
   const row=(t,n,link,note)=>`<tr><td>${t}</td><td><b>${fmt(n)}</b></td><td class="small muted">${note||''}</td><td>${link&&n?`<a href="${link}">عرض</a>`:''}</td></tr>`;
+  const blanks={}, filled={}; ms.forEach(m=>m.st.forEach((x,i)=>{ if(x.status!=='done'||x.kind!=='migration') return;
+    x.items.forEach(it=>{ const o=S.ov[m.s.id]?.[it.c]; if(o&&o.fill) it.own.forEach(r=>filled[r]=(filled[r]||0)+1);
+      else if(it.st==='pending'&&isBlankRaw(m.s.v[it.c])) it.own.forEach(r=>blanks[r]=(blanks[r]||0)+1); }); }));
   const missingItems={}; ms.forEach(m=>{ if(m.cur>=10) return; m.st[m.cur].items.filter(i=>i.st==='pending').forEach(i=>{ i.own.forEach(r=>{ missingItems[r]=(missingItems[r]||0)+1; }); }); });
   return `<h1>جودة البيانات</h1><div class="sub">الصفوف الناقصة أو المتناقضة، منسوبة لمسؤوليها · محسوبة من البيانات المرحّلة</div>
   <div class="grid g2">
@@ -882,6 +921,11 @@ function vQuality(){
    ${Object.entries(missingItems).sort((a,b)=>b[1]-a[1]).map(([r,n])=>`<tr><td>${esc(ROLES[r])}</td><td><b>${fmt(n)}</b></td></tr>`).join('')}</table>
    ${gatesNoHolder.length?`<div class="note bad">بوابات بلا معتمِد: ${gatesNoHolder.map(ltr).join('، ')}</div>`:'<div class="note ok small">لكل بوابة صاحب صلاحية واحد على الأقل.</div>'}
   </div></div>
+  <div class="card" style="margin-top:14px"><div class="row"><h2 style="margin:0">استكمال الترحيل: حقول فارغة في مراحل منجزة</h2><span class="right pill ${windowOpen()?'p-ok':'p-warn'}">${windowOpen()?`الفترة مفتوحة · متبقٍ ${windowLeft()} يوماً`:'الفترة مغلقة'}</span></div>
+   <p class="small muted">مراحل اعتُمدت بنوع «ترحيل» وفيها بنود فارغة في الملف. يملؤها مالكها مباشرة من صفحة الموقع (زر «استكمال») أو جماعياً من <a href="#/import">استيراد Excel</a>.</p>
+   <table><tr><th>المالك</th><th>بانتظار الاستكمال</th><th>استُكمل</th><th>التقدم</th></tr>
+   ${Object.keys(ROLES).filter(r=>blanks[r]||filled[r]).sort((a,b)=>(blanks[b]||0)-(blanks[a]||0)).map(r=>{ const b=blanks[r]||0, f=filled[r]||0;
+     return `<tr><td>${esc(ROLES[r])}</td><td><b>${fmt(b)}</b></td><td>${fmt(f)}</td><td style="width:35%"><div class="bar"><i style="width:${f/Math.max(1,b+f)*100}%;float:right"></i></div></td></tr>`;}).join('')||'<tr><td colspan="4" class="empty">لا حقول فارغة</td></tr>'}</table></div>
   <div class="card" style="margin-top:14px"><h2>المواقع الشاردة</h2><table><tr><th>الرمز في RF & Design</th><th>Site Owner ID</th><th>الاسم</th><th>المنطقة</th><th>الإحداثيات</th><th>ملاحظة</th></tr>
    ${RAW.stray.map(s=>{ const twin=SITES.find(x=>x.la===s.la&&x.lo===s.lo); const bad=!CODE_RE.test(s.id);
      return `<tr><td class="mono">${esc(s.id)}</td><td class="mono">${esc(s.own||'—')}</td><td>${esc(s.nm)}</td><td>${esc(regAr(s.rg))}</td><td class="mono small">${esc(s.la)}, ${esc(s.lo)}</td>
@@ -901,6 +945,12 @@ function vSettings(){
    <div class="card"><h2>المستخدمون التجريبيون ونطاقهم</h2><table><tr><th>المستخدم</th><th>الدور</th><th>النطاق</th></tr>
     ${USERS.map(u=>`<tr><td>${esc(u.name)}</td><td class="small">${esc(ROLES[u.role])}</td><td class="small">${u.regions?u.regions.map(regAr).join('، '):'المشروع كاملاً'}</td></tr>`).join('')}</table>
     <div class="small muted" style="margin-top:6px">قائمة <span class="ltr">Project Staff</span> في الملف فارغة، فالأسماء هنا أدوار لا أشخاص.</div></div>
+   <div class="card"><h2>التحويل وفترة الاستكمال</h2>
+    <p class="small muted">من يوم التحويل يصبح النظام مصدر البيانات، ويُحفظ ملف Excel للقراءة فقط. خلال فترة الاستكمال تُملأ الحقول الفارغة في المراحل المرحَّلة دون طلب تعديل.</p>
+    <div class="form" style="grid-template-columns:1fr 1fr">
+     <label class="f"><span>تاريخ التحويل</span><input type="date" value="${S.cutover}" ${ed?'':'disabled'} onchange="S.cutover=this.value;save();route()"></label>
+     <label class="f"><span>مدة الاستكمال (يوم)</span><input type="number" min="0" value="${S.windowDays}" ${ed?'':'disabled'} onchange="S.windowDays=+this.value;save();route()"></label></div>
+    <div class="note ${windowOpen()?'ok':'warn'} small">${windowOpen()?`الفترة مفتوحة · متبقٍ ${windowLeft()} يوماً`:'الفترة مغلقة · أي تعديل على مرحلة مقفلة يتطلب طلب تعديل'}</div></div>
    <div class="card"><h2>العدد المتعاقد عليه (<span class="ltr">tblProjectScope</span>)</h2>
     <p class="small muted">فارغ في الملف. القيم أدناه افتراضية للنموذج فقط.</p>
     <div class="form" style="grid-template-columns:1fr 1fr">${['PH1','PH2'].map(p=>`<label class="f"><span>${p} · Contract Sites</span><input type="number" min="0" value="${S.contract[p]}" ${ed?'':'disabled'} onchange="S.contract['${p}']=+this.value;save();toast('حُفظ')"></label>`).join('')}</div>
@@ -920,20 +970,278 @@ function vAbout(){
    <li>مسار إنشاء موقع كامل: فحوصات فورية للرمز والتكرار، ومعاينة المراحل حسب النطاق، ومراجعة ثم اعتماد.</li>
    <li>اعتماد البوابات بالصلاحية، مع مصفوفة صلاحيات قابلة للتعديل.</li>
    <li>قفل المرحلة بعد اعتمادها، وطلب تعديل بسبب، وسجل تدقيق.</li>
-   <li>منسق المنطقة: يرى منطقته فقط، ويدير مشكلة الموقع، ويتلقى التنبيهات.</li></ul></div>
+   <li>منسق المنطقة: يرى منطقته فقط، ويدير مشكلة الموقع، ويتلقى التنبيهات.</li>
+   <li>استيراد Excel: قالب لكل مرحلة ومنطقة معبأ بالقيم الحالية، ومعاينة قبل الحفظ، ويُحفظ كل شيء أو لا شيء.</li>
+   <li>فترة استكمال الترحيل: تُملأ الحقول الفارغة في المراحل المرحَّلة دون طلب تعديل، ويُوسم ما يُملأ بـ«استكمال ترحيل».</li>
+   <li>قاعدة التسلسل: لا يُقبل تاريخ يسبق إنجاز المرحلة السابقة.</li></ul></div>
   <div class="card"><h2>جرّب هذا السيناريو</h2><ol>
    <li>ادخل باسم <b>مهندس RF</b> ← «إضافة موقع» ← اختر طرابلس وجرّب إحداثيات موقع قائم مثل <span class="mono">32.800074, 13.142691</span>.</li>
    <li>أكمل النطاق واجعل Tower Erection وSite Adaption = N/A، وراقب المعاينة.</li>
    <li>ادخل باسم <b>قائد فريق التصميم والاستملاك</b> ← «مهامي» ← مرّر الطلب.</li>
    <li>ادخل باسم <b>مدير المشروع</b> ← اعتمد الموقع، ثم افتحه من «المواقع».</li>
    <li>ادخل باسم <b>منسق منطقة طرابلس</b>: لاحظ أنه يرى طرابلس فقط، وتلقى تنبيهاً بالموقع الجديد.</li>
-   <li>ادخل باسم <b>قائد فريق TE</b> ← «مهامي» ← اعتمد بوابة جاهزة.</li></ol></div>
+   <li>ادخل باسم <b>قائد فريق TE</b> ← «مهامي» ← اعتمد بوابة جاهزة.</li>
+   <li>بالمستخدم نفسه ← «استيراد Excel» ← نزّل قالب <span class="ltr">TE PAC</span> لطرابلس، واملأ عمود SSV لبعض المواقع، وغيّر تاريخاً قائماً في مرحلة مقفلة، ثم ارفعه وراقب المعاينة.</li>
+   <li>افتح موقعاً مرحَّلاً على الهواء، مثل <span class="mono">BG002</span>، ثم مرحلة <span class="ltr">TE PAC</span>، واضغط «استكمال» على بند SSV الفارغ.</li></ol></div>
   <div class="card"><h2>افتراضات النموذج</h2><ul class="small">
    <li>حالة المرحلة تُحسب من أعمدة Master. المراحل بلا عمود مَعلم (RF & Design وPRE-CW وRFI والإغلاق) تُعتبر منجزة إذا اكتملت بنودها وبدأت مرحلة لاحقة.</li>
    <li>المراحل المنجزة في الملف تظهر باعتماد من نوع «ترحيل»، ولم يُختلق لها معتمِد.</li>
    <li>أعمدة المراحل 8 و9 و10 شبه فارغة في الملف، لذا تقف أغلب المواقع المتقدمة عند <span class="ltr">CLUSTER OPTIMIZATION</span>.</li>
    <li>التعديلات تُحفظ في متصفحك فقط. «إعادة ضبط» تمسحها.</li></ul></div>
   </div>`;
+}
+
+/* ====================== Excel: كتابة وقراءة دون مكتبات ====================== */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function zipStore(files){
+  const enc=new TextEncoder(), parts=[], central=[]; let off=0;
+  for(const f of files){
+    const nm=enc.encode(f.name), d=typeof f.data==='string'?enc.encode(f.data):f.data, crc=crc32(d);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(12,0x21,true);
+    h.setUint32(14,crc,true); h.setUint32(18,d.length,true); h.setUint32(22,d.length,true); h.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(h.buffer),nm,d);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(14,0x21,true);
+    c.setUint32(16,crc,true); c.setUint32(20,d.length,true); c.setUint32(24,d.length,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm); off+=30+nm.length+d.length;
+  }
+  const cd=central.reduce((a,b)=>a+b.length,0), e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cd,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...central,new Uint8Array(e.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+async function unzip(buf){
+  const dv=new DataView(buf); let e=-1;
+  for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--) if(dv.getUint32(i,true)===0x06054b50){e=i;break;}
+  if(e<0) throw new Error('الملف ليس ملف Excel بصيغة xlsx');
+  const n=dv.getUint16(e+10,true), dec=new TextDecoder(), out={}; let p=dv.getUint32(e+16,true);
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50) throw new Error('بنية الملف تالفة');
+    const method=dv.getUint16(p+10,true), size=dv.getUint32(p+20,true), nl=dv.getUint16(p+28,true), xl=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), lo=dv.getUint32(p+42,true);
+    const name=dec.decode(new Uint8Array(buf,p+46,nl)); p+=46+nl+xl+cl;
+    const start=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true);
+    out[name]={method, raw:new Uint8Array(buf,start,size)};
+  }
+  return async name=>{ const f=out[name]; if(!f) return null; if(f.method===0) return dec.decode(f.raw);
+    if(f.method!==8) throw new Error('نوع ضغط غير مدعوم في الملف');
+    return await new Response(new Blob([f.raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text(); };
+}
+const xesc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function colName(i){ let s=''; i++; while(i){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26);} return s; }
+function colIndex(s){ let n=0; for(const ch of s) n=n*26+(ch.charCodeAt(0)-64); return n-1; }
+function dateSerial(iso){ return Math.round((Date.UTC(+iso.slice(0,4),+iso.slice(5,7)-1,+iso.slice(8,10))-Date.UTC(1899,11,30))/864e5); }
+function serialDate(n){ return new Date(Date.UTC(1899,11,30)+Math.round(n)*864e5).toISOString().slice(0,10); }
+function normDate(t){
+  t=String(t).trim(); let m;
+  if((m=t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  if((m=t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/))) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return null;
+}
+/* sheets: [{name, rows:[[cell]], widths, validations:[{sqref, list}|{sqref, date:true}], rtl, freeze:[x,y]}]
+   cell: نص، أو {v, t:'d' (تاريخ), st: رقم النمط}. الأنماط: 1 رأس، 2 تاريخ، 3 للقراءة فقط، 4 تاريخ للقراءة فقط */
+function buildXlsx(sheets){
+  const NS='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const sheetXml=sh=>{
+    const rows=sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.map((c,ci)=>{
+      if(c==null||c==='') return '';
+      if(typeof c!=='object') c={v:c};
+      if(c.v==null||c.v===''){ return c.st?`<c r="${colName(ci)}${ri+1}" s="${c.st}"/>`:''; }
+      const ref=colName(ci)+(ri+1), st=c.st?` s="${c.st}"`:'';
+      if(c.t==='d'&&isDate(c.v)) return `<c r="${ref}"${st}><v>${dateSerial(c.v)}</v></c>`;
+      if(typeof c.v==='number') return `<c r="${ref}"${st}><v>${c.v}</v></c>`;
+      return `<c r="${ref}" t="inlineStr"${st}><is><t xml:space="preserve">${xesc(c.v)}</t></is></c>`;
+    }).join('')}</row>`).join('');
+    const cols=sh.widths?`<cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols>`:'';
+    const v=sh.validations||[];
+    const dv=v.length?`<dataValidations count="${v.length}">${v.map(x=>x.list
+      ?`<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="${x.sqref}"><formula1>"${xesc(x.list.join(','))}"</formula1></dataValidation>`
+      :`<dataValidation type="date" operator="between" allowBlank="1" showErrorMessage="1" errorTitle="Date" error="2020-01-01 .. today" sqref="${x.sqref}"><formula1>43831</formula1><formula2>${dateSerial(TODAY_S)}</formula2></dataValidation>`).join('')}</dataValidations>`:'';
+    const pane=sh.freeze?`<pane xSplit="${sh.freeze[0]}" ySplit="${sh.freeze[1]}" topLeftCell="${colName(sh.freeze[0])}${sh.freeze[1]+1}" activePane="bottomRight" state="frozen"/>`:'';
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet ${NS}><sheetViews><sheetView ${sh.rtl?'rightToLeft="1" ':''}workbookViewId="0">${pane}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>${cols}<sheetData>${rows}</sheetData>${dv}</worksheet>`;
+  };
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF14284B"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEEF0F3"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="center"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const files=[
+    {name:'[Content_Types].xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`},
+    {name:'_rels/.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:'xl/workbook.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook ${NS}><bookViews><workbookView/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${xesc(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`},
+    {name:'xl/_rels/workbook.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:'xl/styles.xml', data:styles},
+    ...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`, data:sheetXml(s)})),
+  ];
+  return zipStore(files);
+}
+async function readXlsx(file){
+  const get=await unzip(await file.arrayBuffer()), P=new DOMParser();
+  const xml=async n=>{ const t=await get(n); return t?P.parseFromString(t,'application/xml'):null; };
+  const T=(d,tag)=>Array.from(d.getElementsByTagNameNS('*',tag));
+  const ss=[]; const sst=await xml('xl/sharedStrings.xml'); if(sst) T(sst,'si').forEach(si=>ss.push(T(si,'t').map(t=>t.textContent).join('')));
+  const wb=await xml('xl/workbook.xml'); if(!wb) throw new Error('الملف ليس ملف Excel صالحاً');
+  const rels=await xml('xl/_rels/workbook.xml.rels'), rel={}; if(rels) T(rels,'Relationship').forEach(r=>rel[r.getAttribute('Id')]=r.getAttribute('Target'));
+  const out={};
+  for(const sh of T(wb,'sheet')){
+    const rid=sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id')||sh.getAttribute('r:id');
+    let path=rel[rid]; if(!path) continue; path=path.startsWith('/')?path.slice(1):'xl/'+path.replace(/^\.\//,'');
+    const doc=await xml(path); if(!doc) continue; const rows=[];
+    T(doc,'row').forEach((r,k)=>{ const ri=r.getAttribute('r')?+r.getAttribute('r')-1:k; const row=rows[ri]=[];
+      T(r,'c').forEach((c,j)=>{ const ref=c.getAttribute('r'), ci=ref?colIndex(ref.replace(/\d+/g,'')):j, t=c.getAttribute('t'), vEl=T(c,'v')[0]; let v=null;
+        if(t==='s') v=vEl?ss[+vEl.textContent]:null;
+        else if(t==='inlineStr') v=T(c,'t').map(x=>x.textContent).join('');
+        else if(vEl) v=(t==='str'||t==='e'||t==='d'||t==='b')?vEl.textContent:Number(vEl.textContent);
+        row[ci]=v; }); });
+    out[sh.getAttribute('name')]=rows;
+  }
+  return out;
+}
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500); }
+
+/* ====================== استيراد Excel ====================== */
+function ownedStages(){
+  return STAGES.map((g,i)=>({g,i,items:g.items.map(([c,l,own])=>({c,l,own:own||g.owner})).filter(it=>it.own.includes(me().role))})).filter(x=>x.items.length);
+}
+const STATUS_OUT={done:'Done',wip:'In Progress',pending:'Pending',fail:'Pending',cancelled:'Cancelled',na:'N/A'};
+const STATUS_IN={'done':'done','in progress':'wip','pending':'req','':'req','n/a':'na','cancelled':'cancelled'};
+const stageStateAr=x=>({done:'منجزة (مقفلة)',na:'غير منطبقة',ready:'جاهزة للاعتماد',active:'جارية',pending:'لم تبدأ',cancelled:'ملغى'})[x.status]||x.status;
+let IMP={stage:'', region:'', res:null, busy:false};
+
+function templateFor(si, region){
+  const g=STAGES[si], own=ownedStages().find(x=>x.i===si).items;
+  const hdr=['Site ID','Site Name','Region','حالة المرحلة'], widths=[11,26,14,16], vals=[];
+  own.forEach(it=>{ const k=itemKind(it.c);
+    if(k==='text'){ hdr.push(`${it.l} [${it.c}] Value`); widths.push(20); }
+    else { hdr.push(`${it.l} [${it.c}] Status`); widths.push(14); if(k==='date'){ hdr.push(`${it.l} [${it.c}] Date`); widths.push(13); } } });
+  const sites=SITES.filter(s=>inScope(s)&&(!region||s.rg===region)).map(model).filter(m=>!m.cancelled&&m.st[si].status!=='na');
+  const rows=[hdr.map(h=>({v:h,st:1}))];
+  sites.forEach(m=>{ const x=m.st[si]; const r=[{v:m.s.id,st:3},{v:m.s.nm,st:3},{v:regAr(m.s.rg),st:3},{v:stageStateAr(x),st:3}];
+    own.forEach(o=>{ const it=x.items.find(y=>y.c===o.c), k=itemKind(o.c), na=it.st==='na';
+      if(k==='text') r.push({v:it.st==='done'?String(it.val):'', st:na?3:0});
+      else { r.push({v:STATUS_OUT[it.st]||'Pending', st:na?3:0}); if(k==='date') r.push({v:it.date||'', t:'d', st:na?4:2}); } });
+    rows.push(r); });
+  const n=rows.length, valid=[]; let ci=4;
+  own.forEach(it=>{ const k=itemKind(it.c);
+    if(k==='text'){ ci++; return; }
+    valid.push({sqref:`${colName(ci)}2:${colName(ci)}${Math.max(n,2)}`, list:['Done','In Progress','Pending']}); ci++;
+    if(k==='date'){ valid.push({sqref:`${colName(ci)}2:${colName(ci)}${Math.max(n,2)}`, date:true}); ci++; } });
+  const help=[[{v:'قالب استيراد GSDN',st:1},{v:'',st:1}],
+    ['المرحلة',`${g.n} · ${g.ar}`],['المنطقة',region?regAr(region):'كل مناطق نطاقك'],['أُنشئ بواسطة',me().name],['التاريخ',TODAY_S],[''],
+    ['التعليمات'],['1','عدّل أعمدة البنود فقط. الأعمدة الرمادية للقراءة.'],
+    ['2','الحالة: Done أو In Progress أو Pending. N/A يحدده نطاق العمل ولا يُكتب يدوياً.'],
+    ['3','التاريخ يُكتب فقط مع Done، وهو إلزامي معه. لا يسبق تاريخ إنجاز المرحلة السابقة.'],
+    ['4','المرحلة «منجزة (مقفلة)»: تُملأ حقولها الفارغة فقط خلال فترة الاستكمال. تغيير قيمة موجودة يتم بطلب تعديل.'],
+    ['5','لا تغيّر أسماء الأعمدة ولا تحذف هذه الورقة. الاستيراد يحفظ كل شيء أو لا شيء.'],[''],
+    ['#stage',g.k],['#region',region||''],['#role',me().role]];
+  return buildXlsx([{name:'Data',rows,widths,validations:valid,rtl:true,freeze:[1,1]},{name:'تعليمات',rows:help,widths:[14,90],rtl:true}]);
+}
+
+async function parseImport(file){
+  const wb=await readXlsx(file);
+  const meta={}; (wb['تعليمات']||[]).forEach(r=>{ if(r&&typeof r[0]==='string'&&r[0].startsWith('#')) meta[r[0].slice(1)]=r[1]; });
+  const si=STAGES.findIndex(g=>g.k===meta.stage);
+  if(si<0) throw new Error('هذا الملف ليس قالب استيراد من النظام (ورقة «تعليمات» لا تحمل رمز المرحلة). نزّل القالب من هذه الشاشة واملأه.');
+  const rows=wb['Data']; if(!rows||!rows[0]) throw new Error('ورقة Data غير موجودة');
+  const cols=[]; rows[0].forEach((h,ci)=>{ const mm=String(h??'').match(/\[(\d+)\]\s*(Status|Date|Value)\s*$/); if(mm) cols.push({ci,c:+mm[1],f:mm[2]}); });
+  if(!cols.length) throw new Error('لم أجد أعمدة بنود في الصف الأول. لا تغيّر أسماء الأعمدة.');
+  const res={stage:si, file:file.name, changes:[], rejects:[], warns:[], unchanged:0, rows:0};
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r]; if(!row||row.every(v=>v==null||v==='')) continue; res.rows++;
+    const id=String(row[0]??'').trim(), s=BYID.get(id);
+    const rej=why=>res.rejects.push({r:r+1,id,why}); let bad=false, changed=false;
+    if(!s){ rej('رمز موقع غير موجود في النظام'); continue; }
+    if(!inScope(s)){ rej('الموقع خارج نطاق صلاحياتك'); continue; }
+    const m=model(s), x=m.st[si];
+    if(m.cancelled){ rej('الموقع ملغى'); continue; }
+    const by={}; cols.forEach(k=>{ (by[k.c]=by[k.c]||{})[k.f]=row[k.ci]; });
+    for(const [cs,v] of Object.entries(by)){
+      const c=+cs, it=x.items.find(y=>y.c===c), k=itemKind(c);
+      if(!it){ rej(`العمود [${c}] ليس من بنود مرحلة ${x.g.n}`); bad=true; continue; }
+      let nst, nd=null, ntxt=null;
+      if(k==='text'){ ntxt=String(v.Value??'').trim()||null; nst=ntxt?'done':'req'; }
+      else {
+        const raw=String(v.Status??'').trim(); nst=STATUS_IN[raw.toLowerCase()];
+        if(nst===undefined){ rej(`«${it.l}»: حالة غير معروفة «${raw}» (المسموح Done / In Progress / Pending)`); bad=true; continue; }
+        if(k==='date'){ const dv=v.Date; if(dv!=null&&dv!==''){ nd=typeof dv==='number'?serialDate(dv):normDate(dv); if(!nd){ rej(`«${it.l}»: تاريخ غير مفهوم «${dv}»`); bad=true; continue; } } }
+      }
+      const cur=it.st==='done'?'done':it.st==='wip'?'wip':it.st==='na'?'na':it.st==='cancelled'?'cancelled':'req';
+      const same = k==='text' ? (ntxt||'')===(it.st==='done'?String(it.val):'') : nst===cur && (k!=='date'||(nd||null)===(it.date||null));
+      if(same) continue;
+      if(it.st==='na'||nst==='na'){ rej(`«${it.l}»: ${it.why&&it.why.includes('الملف')?'N/A مُدخل في الملف المرحَّل، وتغييره بطلب تعديل من صفحة الموقع':'«غير منطبق» يحدده نطاق العمل ولا يُغيَّر بالاستيراد'}`); bad=true; continue; }
+      if(it.st==='cancelled'||nst==='cancelled'){ rej(`«${it.l}»: «ملغى» لا يُغيَّر بالاستيراد`); bad=true; continue; }
+      if(!it.own.includes(me().role)){ rej(`«${it.l}»: ليس من الحقول التي تملكها`); bad=true; continue; }
+      let fill=false;
+      if(x.status==='done'){
+        const o=S.ov[s.id]?.[c];
+        if(x.kind==='migration'&&windowOpen()&&isBlankRaw(s.v[c])&&(!o||o.fill)&&it.st!=='done') fill=true;
+        else { rej(`«${it.l}»: المرحلة مقفلة بعد الاعتماد${x.kind==='migration'&&!windowOpen()?' وفترة الاستكمال انتهت':''}. التعديل بطلب تعديل من صفحة الموقع`); bad=true; continue; }
+      }
+      const val=validateItem(m,si,c,nst,nd,ntxt,fill);
+      if(val.errs.length){ rej(`«${it.l}»: ${val.errs.join('، ')}`); bad=true; continue; }
+      val.warns.forEach(w=>res.warns.push({r:r+1,id,why:`«${it.l}»: ${w}`}));
+      const o={st:nst, d:nst==='done'?nd:null, src:'import'}; if(ntxt) o.txt=ntxt; if(fill) o.fill=true;
+      res.changes.push({r:r+1, id, c, l:it.l, old:it.val, neu:ntxt||(nst==='done'?(nd||'Done'):nst==='wip'?'جارٍ':'مطلوب'), o, fill});
+      changed=true;
+    }
+    if(!changed&&!bad) res.unchanged++;
+  }
+  return res;
+}
+function applyImport(){
+  const res=IMP.res; if(!res||res.rejects.length||!res.changes.length) return;
+  const before=new Set(SITES.map(model).filter(m=>m.cur<10&&!m.cancelled&&m.st[m.cur].status==='ready').map(m=>m.s.id));
+  res.changes.forEach(ch=>{ (S.ov[ch.id]=S.ov[ch.id]||{})[ch.c]=ch.o; audit(ch.id,`${ch.fill?'استكمال ترحيل':'استيراد Excel'} «${ch.l}»`,`${ch.old} ← ${ch.neu} · ${res.file}`); });
+  CACHE.clear();
+  const nowReady=SITES.map(model).filter(m=>m.cur<10&&!m.cancelled&&m.st[m.cur].status==='ready'&&!before.has(m.s.id)).length;
+  S.imports.unshift({t:new Date().toISOString().slice(0,16).replace('T',' '), by:me().name, file:res.file, stage:STAGES[res.stage].n,
+    changes:res.changes.length, fills:res.changes.filter(c=>c.fill).length, sites:new Set(res.changes.map(c=>c.id)).size, ready:nowReady});
+  IMP.res=null; save(); route(); toast(`حُفظ الاستيراد: ${res.changes.length} تغييراً${nowReady?` · ${nowReady} بوابة أصبحت جاهزة للاعتماد`:''}`);
+}
+function vImport(){
+  const own=ownedStages();
+  if(!own.length) return `<div class="card note bad">لا تملك حقول إدخال في أي مرحلة، فلا يوجد قالب استيراد لدورك.</div>`;
+  if(!IMP.stage||!own.some(x=>String(x.i)===IMP.stage)) IMP.stage=String(own[0].i);
+  const regs=REGIONS.filter(r=>!me().regions||me().regions.includes(r.k));
+  AFTER.push(()=>{
+    const st=document.getElementById('i_stage'), rg=document.getElementById('i_region'), fi=document.getElementById('i_file');
+    st.onchange=()=>{IMP.stage=st.value;IMP.res=null;route();}; rg.onchange=()=>{IMP.region=rg.value;};
+    document.getElementById('i_dl').onclick=()=>{ const g=STAGES[+IMP.stage];
+      download(templateFor(+IMP.stage,IMP.region),`GSDN_${g.n.replace(/\W+/g,'-')}_${IMP.region?REG[IMP.region].p:'ALL'}_${TODAY_S}.xlsx`); toast('نُزّل القالب'); };
+    fi.onchange=async()=>{ const f=fi.files[0]; if(!f) return; IMP.busy=true; IMP.res=null; IMP.err=null; route();
+      try{ IMP.res=await parseImport(f); }catch(e){ IMP.err=e.message; } IMP.busy=false; route(); };
+    const ap=document.getElementById('i_apply'); if(ap) ap.onclick=()=>{ if(confirm(`حفظ ${IMP.res.changes.length} تغييراً على ${new Set(IMP.res.changes.map(c=>c.id)).size} موقعاً؟`)) applyImport(); };
+  });
+  const r=IMP.res; const g=STAGES[+IMP.stage]; const ownItems=own.find(x=>String(x.i)===IMP.stage).items;
+  const sitesN=r?new Set(r.changes.map(c=>c.id)).size:0;
+  return `<h1>استيراد Excel</h1><div class="sub">للتحديث الجماعي: قالب خاص بمرحلتك ومنطقتك، معبأ بالقيم الحالية · معاينة قبل الحفظ · يُحفظ كل شيء أو لا شيء</div>
+  ${windowOpen()?`<div class="note ok small">فترة استكمال الترحيل مفتوحة (متبقٍ ${windowLeft()} يوماً): الحقول الفارغة في المراحل المرحَّلة المقفلة تُقبل في الاستيراد.</div>`:''}
+  <div class="grid g2">
+   <div class="card"><h2>1 · تنزيل القالب</h2>
+    <div class="form" style="grid-template-columns:1fr 1fr">
+     <label class="f"><span>المرحلة (التي تملك فيها حقولاً)</span><select id="i_stage">${own.map(x=>`<option value="${x.i}" ${String(x.i)===IMP.stage?'selected':''}>${esc(x.g.n)} · ${esc(x.g.ar)}</option>`).join('')}</select></label>
+     <label class="f"><span>المنطقة</span><select id="i_region"><option value="">كل مناطق نطاقك</option>${regs.map(x=>`<option value="${esc(x.k)}" ${x.k===IMP.region?'selected':''}>${esc(x.ar)}</option>`).join('')}</select></label></div>
+    <p class="small muted" style="margin:10px 0 6px">أعمدة القالب: بنودك في هذه المرحلة فقط (${ownItems.map(x=>esc(x.l)).join('، ')}). كل بند تاريخي له عمودان: الحالة والتاريخ، مع قوائم منسدلة وتحقق من التاريخ داخل Excel.</p>
+    <button class="btn pri" id="i_dl">تنزيل القالب (.xlsx)</button></div>
+   <div class="card"><h2>2 · رفع الملف المعبأ</h2>
+    <input type="file" id="i_file" accept=".xlsx">
+    <p class="small muted">يُقرأ الملف داخل المتصفح. لا يُحفظ شيء قبل أن تعتمد المعاينة.</p>
+    ${IMP.busy?'<div class="note">جارٍ قراءة الملف…</div>':''}${IMP.err?`<div class="note bad">${esc(IMP.err)}</div>`:''}</div>
+  </div>
+  ${r?`<div class="card" style="margin-top:14px">
+    <div class="row"><h2 style="margin:0">3 · المعاينة: ${esc(r.file)}</h2><span class="right small muted ltr">${esc(STAGES[r.stage].n)}</span></div>
+    <div class="grid g4" style="margin:12px 0">
+     <div class="card kpi"><div class="l">صفوف مقروءة</div><div class="v">${r.rows}</div></div>
+     <div class="card kpi"><div class="l">تغييرات</div><div class="v" style="color:var(--info)">${r.changes.length}</div><div class="n">على ${sitesN} موقعاً · منها ${r.changes.filter(c=>c.fill).length} استكمال ترحيل</div></div>
+     <div class="card kpi"><div class="l">مرفوض</div><div class="v" style="color:${r.rejects.length?'var(--bad)':'inherit'}">${r.rejects.length}</div></div>
+     <div class="card kpi"><div class="l">تنبيهات</div><div class="v" style="color:${r.warns.length?'var(--warn)':'inherit'}">${r.warns.length}</div></div>
+     <div class="card kpi"><div class="l">بلا تغيير</div><div class="v">${r.unchanged}</div></div></div>
+    ${r.rejects.length?`<div class="note bad"><b>لا حفظ جزئي.</b> صحّح الصفوف المرفوضة في الملف وأعد رفعه. لن يُحفظ أي تغيير من هذا الملف.</div>
+      <table><tr><th>صف Excel</th><th>الموقع</th><th>سبب الرفض</th></tr>${r.rejects.slice(0,200).map(x=>`<tr><td>${x.r}</td><td class="mono">${esc(x.id)}</td><td>${esc(x.why)}</td></tr>`).join('')}</table>`:''}
+    ${r.warns.length?`<h3 style="margin-top:14px">تنبيهات (لا تمنع الحفظ)</h3><table><tr><th>صف</th><th>الموقع</th><th>التنبيه</th></tr>${r.warns.slice(0,100).map(x=>`<tr><td>${x.r}</td><td class="mono">${esc(x.id)}</td><td>${esc(x.why)}</td></tr>`).join('')}</table>`:''}
+    ${r.changes.length?`<h3 style="margin-top:14px">التغييرات</h3><table><tr><th>صف</th><th>الموقع</th><th>البند</th><th>القيمة الحالية</th><th>القيمة الجديدة</th><th></th></tr>
+      ${r.changes.slice(0,300).map(x=>`<tr><td>${x.r}</td><td class="mono"><a href="#/site/${encodeURIComponent(x.id)}">${esc(x.id)}</a></td><td>${esc(x.l)}</td><td class="muted">${esc(x.old)}</td><td><b>${esc(x.neu)}</b></td><td>${x.fill?'<span class="pill p-warn">استكمال ترحيل</span>':''}</td></tr>`).join('')}</table>
+      ${r.changes.length>300?`<div class="small muted">و${r.changes.length-300} تغييراً آخر</div>`:''}`:'<div class="empty">لا تغييرات في الملف</div>'}
+    <div class="row" style="margin-top:14px"><button class="btn ok" id="i_apply" ${r.rejects.length||!r.changes.length?'disabled':''}>اعتماد وحفظ ${r.changes.length} تغييراً</button>
+      <button class="btn" onclick="IMP.res=null;route()">إلغاء</button></div></div>`:''}
+  <div class="card" style="margin-top:14px"><h2>سجل الاستيراد</h2>${S.imports.length?`<table><tr><th>الوقت</th><th>المستخدم</th><th>الملف</th><th>المرحلة</th><th>تغييرات</th><th>استكمال</th><th>مواقع</th><th>بوابات أصبحت جاهزة</th></tr>
+    ${S.imports.map(x=>`<tr><td class="mono small">${esc(x.t)}</td><td>${esc(x.by)}</td><td class="small">${esc(x.file)}</td><td class="ltr small">${esc(x.stage)}</td><td>${x.changes}</td><td>${x.fills}</td><td>${x.sites}</td><td>${x.ready}</td></tr>`).join('')}</table>`:'<div class="empty">لا عمليات استيراد بعد</div>'}</div>`;
 }
 
 /* ====================== التشغيل ====================== */
