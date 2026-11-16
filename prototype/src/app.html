@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GSDN · نموذج أولي لنظام إدارة المشروع</title>
+<style>
+:root{
+  --navy:#14284b; --navy2:#1f3a68; --ink:#1d2433; --mute:#667085; --line:#e4e7ec; --bg:#f5f7fa; --card:#fff;
+  --ok:#1a7f4b; --okbg:#e6f4ec; --warn:#b54708; --warnbg:#fef0e1; --bad:#b42318; --badbg:#fde9e7;
+  --info:#175cd3; --infobg:#e8f0fd; --na:#7a8395; --nabg:#eef0f3; --acc:#0e9384;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Tahoma,"Noto Sans Arabic","Noto Kufi Arabic",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55}
+a{color:var(--info);text-decoration:none} a:hover{text-decoration:underline}
+.ltr{direction:ltr;unicode-bidi:isolate}
+span.ltr,b.ltr{display:inline-block}
+td.ltr,dd.ltr,th.ltr{text-align:right}
+code,.mono{font-family:Consolas,"SFMono-Regular",Menlo,monospace;direction:ltr;unicode-bidi:isolate}
+header{background:var(--navy);color:#fff;display:flex;align-items:center;gap:16px;padding:10px 20px;position:sticky;top:0;z-index:20}
+header .brand{font-weight:700;font-size:16px;white-space:nowrap}
+header .brand small{font-weight:400;opacity:.7;margin-inline-start:8px}
+header .sp{flex:1}
+header select,header button{font:inherit;border-radius:8px;border:1px solid #ffffff40;background:#ffffff14;color:#fff;padding:6px 10px}
+header select option{color:#000}
+header .date{opacity:.8;font-size:13px}
+.layout{display:flex;min-height:calc(100vh - 52px)}
+nav{width:220px;background:#fff;border-inline-start:0;border-inline-end:1px solid var(--line);padding:14px 10px;flex-shrink:0}
+nav a{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-radius:8px;color:var(--ink);margin-bottom:2px}
+nav a:hover{background:var(--bg);text-decoration:none}
+nav a.on{background:var(--infobg);color:var(--info);font-weight:600}
+nav .badge{background:var(--bad);color:#fff;border-radius:10px;padding:0 7px;font-size:12px}
+nav .sep{height:1px;background:var(--line);margin:10px 4px}
+nav .who{font-size:12px;color:var(--mute);padding:4px 12px}
+main{flex:1;padding:22px 26px;max-width:1400px;min-width:0}
+h1{font-size:21px;margin:0 0 4px} h2{font-size:16px;margin:0 0 12px} h3{font-size:14px;margin:0 0 8px}
+.sub{color:var(--mute);margin-bottom:18px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.kpi .v{font-size:28px;font-weight:700;line-height:1.2}
+.kpi .l{color:var(--mute);font-size:13px}
+.kpi .n{font-size:12px;color:var(--mute);margin-top:4px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:start;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;color:var(--mute);font-weight:600;background:#fafbfc}
+#tbl th{position:sticky;top:52px;z-index:2}
+tr.click{cursor:pointer} tr.click:hover td{background:#f9fafb}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--okbg);color:var(--ok)} .p-warn{background:var(--warnbg);color:var(--warn)}
+.p-bad{background:var(--badbg);color:var(--bad)} .p-info{background:var(--infobg);color:var(--info)}
+.p-na{background:var(--nabg);color:var(--na)} .p-dark{background:var(--navy);color:#fff}
+.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;color:var(--ink)}
+.btn:hover{background:var(--bg)}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff} .btn.pri:hover{background:var(--navy2)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.bad{color:var(--bad);border-color:#f3b8b2}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:3px 10px;font-size:13px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+input,select,textarea{font:inherit;border:1px solid #d0d5dd;border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid #b2ccff;border-color:#84adff}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
+label.f span.req::after{content:" *";color:var(--bad)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 14px}
+.bar{height:22px;background:var(--nabg);border-radius:6px;overflow:hidden;position:relative}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--navy2),var(--acc))}
+.bar i.na{background:#c7ccd6}
+.funnel td{border:0;padding:5px 8px}
+.heat td{text-align:center;font-variant-numeric:tabular-nums}
+.muted{color:var(--mute)} .small{font-size:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.right{margin-inline-start:auto}
+/* lifecycle */
+.life{display:flex;align-items:stretch;overflow-x:auto;padding:6px 2px 12px;gap:0}
+.stg{min-width:108px;flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 8px;background:#fff;cursor:pointer;text-align:center;position:relative}
+.stg:hover{border-color:#98a2b3}
+.stg.sel{outline:2px solid var(--info);outline-offset:1px}
+.stg .t{font-size:11px;font-weight:700;direction:ltr}
+.stg .a{font-size:11px;color:var(--mute)}
+.stg .d{font-size:11px;margin-top:3px;direction:ltr}
+.stg.done{background:var(--okbg);border-color:#a6dcbf}
+.stg.na{background:var(--nabg);border-style:dashed}
+.stg.ready{background:var(--warnbg);border-color:#f7c08a}
+.stg.active{background:var(--infobg);border-color:#a4c3f8}
+.stg.cancelled{background:var(--badbg)}
+.gate{width:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative}
+.gate b{width:16px;height:16px;transform:rotate(45deg);border:2px solid #98a2b3;background:#fff;display:block}
+.gate.passed b{background:var(--ok);border-color:var(--ok)}
+.gate.ready b{background:#f79009;border-color:#f79009}
+.gate.auto b{background:#c7ccd6;border-color:#c7ccd6}
+.gate small{position:absolute;top:-2px;font-size:9px;color:var(--mute);direction:ltr}
+.items td{padding:7px 10px}
+.ic{display:inline-block;width:18px;text-align:center;font-weight:700}
+.ic.done{color:var(--ok)} .ic.na{color:var(--na)} .ic.pending{color:#98a2b3} .ic.wip{color:var(--info)} .ic.fail,.ic.cancelled{color:var(--bad)}
+.note{border-inline-start:3px solid var(--info);background:var(--infobg);padding:9px 12px;border-radius:6px;margin:10px 0;font-size:13px}
+.note.warn{border-color:#f79009;background:var(--warnbg)}
+.note.bad{border-color:var(--bad);background:var(--badbg)}
+.note.ok{border-color:var(--ok);background:var(--okbg)}
+.steps{display:flex;gap:8px;margin-bottom:16px}
+.steps div{flex:1;padding:8px 12px;border-radius:8px;background:#fff;border:1px solid var(--line);color:var(--mute);font-size:13px}
+.steps div.on{border-color:var(--info);color:var(--info);font-weight:600;background:var(--infobg)}
+.steps div.dn{color:var(--ok)}
+.chk{list-style:none;padding:0;margin:0}
+.chk li{padding:5px 0;display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.modal-bg{position:fixed;inset:0;background:#0f172a80;display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:#fff;border-radius:14px;padding:20px 22px;width:min(520px,92vw);max-height:90vh;overflow:auto}
+.modal h2{margin-bottom:10px}
+.toast{position:fixed;bottom:20px;left:20px;background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;z-index:60;box-shadow:0 6px 20px #0003}
+.perm td,.perm th{text-align:center} .perm td:first-child,.perm th:first-child{text-align:start}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tabs a{padding:8px 14px;color:var(--mute);border-bottom:2px solid transparent}
+.tabs a.on{color:var(--info);border-color:var(--info);font-weight:600}
+.empty{padding:28px;text-align:center;color:var(--mute)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
+.kv dt{color:var(--mute)} .kv dd{margin:0}
+.audit li{font-size:13px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.ribbon{background:#fffbeb;border-bottom:1px solid #fde68a;color:#92400e;font-size:12px;padding:5px 20px;text-align:center}
+@media (max-width:860px){nav{display:none}main{padding:14px}}
+</style>
+</head>
+<body>
+<div class="ribbon">نموذج أولي للعرض والمراجعة · البيانات من GSDN_Site_Master_Template.xlsx · التعديلات تُحفظ في هذا المتصفح فقط</div>
+<header>
+  <div class="brand">GSDN <small>نظام إدارة المشروع</small></div>
+  <div class="sp"></div>
+  <span class="date" id="today"></span>
+  <label class="row" style="gap:6px"><span class="small" style="opacity:.8">الدخول باسم</span><select id="userSel"></select></label>
+  <button id="resetBtn" title="مسح كل التعديلات التجريبية">إعادة ضبط</button>
+</header>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+<div id="modalRoot"></div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+"use strict";
+/* ====================== المعطيات الثابتة ====================== */
+const RAW = JSON.parse(document.getElementById('data').textContent);
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const TODAY_S = isoDate(TODAY);
+
+const REGIONS = [
+  {k:'Tripoli Area',  p:'TR', ar:'طرابلس'},
+  {k:'Middle Area',   p:'MI', ar:'الوسطى'},
+  {k:'Sebha Area',    p:'SB', ar:'سبها'},
+  {k:'GM Area',       p:'GM', ar:'الجبل الأخضر'},
+  {k:'WM Area',       p:'WM', ar:'الجبل الغربي'},
+  {k:'Benghazi Area', p:'BG', ar:'بنغازي'},
+  {k:'Zawia Area',    p:'ZW', ar:'الزاوية'},
+];
+const REG = Object.fromEntries(REGIONS.map(r=>[r.k,r]));
+const CODE_RE = /^(BG|GM|MI|SB|TR|WM|ZW)[0-9]{3}( [A-Z])?$/;
+
+const LISTS = {
+  SiteType:['Core','MFN','FN','HUB','Terminal'], Scenario:['Outdoor','Indoor'],
+  TowerOwner:['Almadar','LTT','AAT','Albounya','HLC','Brega','LNET','Libyana','GECOL','N/A'],
+  ExistNew:['Existing','New','N/A'], RTGF:['RT','GF','N/A'], TowerType:['SST','GMT','Monopole','N/A'],
+  ProjectPhases:['PH1','PH2'], DeliveryBatches:['Batch 0','Batch 1','Batch 2','Batch 3'],
+  DeliveryScenario:['New Build','Expansion','Hot Swap','Cold Swap','Relocation'], DeliveryModel:['In-House','Outsourced'],
+};
+
+const ROLES = {
+  PM:'مدير المشروع', TLD:'Team Lead (Design & Acquisition)', RFE:'RF Engineer', TLCW:'Team Lead (CW)',
+  TLG:'Team Lead (GECOL)', TLF:'Team Lead (Fiber)', TLTE:'Team Lead (TE)', RC:'منسق منطقة (دور جديد)', RO:'متابعة / قراءة فقط',
+};
+const USERS = [
+  {id:'pm',   role:'PM',   name:'مدير المشروع'},
+  {id:'tld',  role:'TLD',  name:'قائد فريق التصميم والاستملاك'},
+  {id:'rfe',  role:'RFE',  name:'مهندس RF'},
+  {id:'tlcw', role:'TLCW', name:'قائد فريق CW'},
+  {id:'tlg',  role:'TLG',  name:'قائد فريق GECOL'},
+  {id:'tlf',  role:'TLF',  name:'قائد فريق الألياف (HLC)'},
+  {id:'tlte', role:'TLTE', name:'قائد فريق TE'},
+  {id:'rc-tr',role:'RC',   name:'منسق منطقة طرابلس', regions:['Tripoli Area']},
+  {id:'rc-mi',role:'RC',   name:'منسق المنطقة الوسطى', regions:['Middle Area']},
+  {id:'ro',   role:'RO',   name:'متابعة (قراءة فقط)'},
+];
+
+/* المراحل العشر كما في MilestoneOrder وأقسام Master. البند: [رقم العمود في Master، الاسم، أدوار المالك (اختياري)] */
+const STAGES = [
+  {k:'rf',    n:'RF & DESIGN', ar:'التصميم والاستملاك', ms:'Site Release', owner:['RFE','TLD'],
+   items:[[19,'RF Survey',['RFE']],[20,'Acquisition (عقد + تصاريح)',['TLD']]]},
+  {k:'precw', n:'PRE-CW', ar:'ما قبل الأعمال المدنية', ms:'PRE-CW Completion', owner:['TLCW'],
+   items:[[34,'PR'],[35,'PO / WO'],[36,'المقاول'],[38,'CW Access'],[41,'CW Survey'],[43,'نتيجة التحليل (STA / ST)'],[45,'اعتماد تقرير المسح'],[47,'CW DN']]},
+  {k:'cw',    n:'ACTUAL CW', ar:'تنفيذ الأعمال المدنية', ms:'CW Completion', msCol:66, owner:['TLCW'],
+   items:[[52,'CW MOS'],[53,'Tower Foundation'],[54,'Tower Steel Erection'],[55,'Tower Lightning & Grounding'],[56,'Cabinet Foundation'],[57,'Mounting Pole'],[58,'Cable Tray'],[59,'Indoor Rack'],[60,'Site Optical Fiber'],[61,'AC / DC Box'],[62,'Site GND'],[64,'بداية التنفيذ الفعلية']]},
+  {k:'rfi',   n:'RFI', ar:'جاهزية الموقع', ms:'Site RFI', owner:['TLCW'],
+   items:[[72,'إغلاق ملاحظات CW'],[73,'CW As-Built'],[74,'CW PAC'],[75,'GECOL — الكهرباء',['TLG']],[76,'HLC — الألياف',['TLF']]]},
+  {k:'te',    n:'TE INSTALLATION', ar:'تركيب المعدات', ms:'TE Completion', msCol:97, owner:['TLTE'],
+   items:[[80,'TE Access'],[81,'TE Survey'],[86,'TE DN'],[88,'TE MOS'],[89,'MTS Cabinet'],[90,'IP Router'],[91,'RF Antenna'],[92,'MW Antenna'],[93,'DC / OF Cable']]},
+  {k:'onair', n:'ON-AIR', ar:'التشغيل', ms:'On-Air', msCol:118, owner:['TLTE'],
+   items:[[101,'Commissioning'],[102,'MW Alignment'],[105,'Integration'],[110,'Cutover']]},
+  {k:'tepac', n:'TE PAC', ar:'القبول المبدئي للمعدات', ms:'TE PAC', msCol:140, owner:['TLTE'],
+   items:[[122,'SSV'],[124,'HWID'],[129,'EIR'],[135,'PAT'],[136,'As-Built'],[138,'إغلاق ملاحظات TE']]},
+  {k:'opt',   n:'CLUSTER OPTIMIZATION', ar:'تحسين العنقود', ms:'KPI Acceptance', msCol:148, owner:['RFE'],
+   items:[[145,'Cluster Optimization'],[148,'KPI Acceptance']]},
+  {k:'hoto',  n:'LAUNCH & HOTO', ar:'الإطلاق والتسليم', ms:'HOTO', msCol:155, owner:['PM'],
+   items:[[151,'Launch'],[152,'Material Reconciliation'],[153,'HOTO Package']]},
+  {k:'close', n:'FINAL CLOSURE', ar:'الإغلاق النهائي', ms:'Final Closure', owner:['PM'],
+   items:[[161,'CW FAC',['TLCW']],[166,'TE FAC',['TLTE']],[167,'الالتزامات التعاقدية']]},
+];
+/* البوابة Gk تفتح المرحلة k (k = 1..9) وتُعتمد عند اكتمال المرحلة k-1 */
+const GATES = ['','Pre-CW Readiness','CW Readiness','RFI Readiness','TE Installation Readiness','On-Air Readiness',
+               'TE PAC Readiness','Cluster Optimization Readiness','HOTO Readiness','Final Closure Readiness'];
+function gatePerm(stageIdx){ return stageIdx<9 ? 'G'+(stageIdx+1) : 'close.approve'; }
+
+const PERMS = [
+  ['site.create','إنشاء موقع (مسودة)'],['site.review','مراجعة طلب موقع'],['site.approve','اعتماد موقع جديد'],
+  ['G1','G1 · Pre-CW Readiness'],['G2','G2 · CW Readiness'],['G3','G3 · RFI Readiness'],['G4','G4 · TE Installation Readiness'],
+  ['G5','G5 · On-Air Readiness'],['G6','G6 · TE PAC Readiness'],['G7','G7 · Cluster Optimization Readiness'],
+  ['G8','G8 · HOTO Readiness'],['G9','G9 · Final Closure Readiness'],['close.approve','الإغلاق النهائي'],
+  ['change.approve','اعتماد طلبات التعديل'],['issue.edit','إدارة مشكلة الموقع'],['settings.edit','تعديل الإعدادات والصلاحيات'],
+];
+const DEFAULT_GRANTS = {
+  'site.create':['RFE','TLD'], 'site.review':['TLD'], 'site.approve':['PM'],
+  G1:['TLD','PM'], G2:['TLCW','PM'], G3:['TLCW','PM'], G4:['PM'], G5:['TLTE','PM'], G6:['TLTE','PM'],
+  G7:['PM'], G8:['RFE','PM'], G9:['PM'], 'close.approve':['PM'], 'change.approve':['PM'],
+  'issue.edit':['RC','PM'], 'settings.edit':['PM'],
+};
+
+/* ====================== الحالة المحلية ====================== */
+const KEY='gsdn-prototype-v1';
+let S = load();
+function fresh(){ return {user:'pm', ov:{}, appr:{}, unlock:{}, issues:{}, requests:[], changes:[], audit:[], notif:[],
+  grants:JSON.parse(JSON.stringify(DEFAULT_GRANTS)), contract:{PH1:480, PH2:0}, seq:1}; }
+function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.grants) return Object.assign(fresh(),s);}catch(e){} return fresh(); }
+function save(){ localStorage.setItem(KEY,JSON.stringify(S)); CACHE.clear(); }
+const me = ()=>USERS.find(u=>u.id===S.user)||USERS[0];
+
+/* المواقع = المرحَّلة من الملف + المعتمدة من طلبات الإنشاء */
+function allSites(){
+  const extra = S.requests.filter(r=>r.status==='approved').map(r=>r.site);
+  return RAW.sites.concat(extra);
+}
+let SITES = allSites();
+let BYID = new Map(SITES.map(s=>[s.id,s]));
+function refreshSites(){ SITES=allSites(); BYID=new Map(SITES.map(s=>[s.id,s])); CACHE.clear(); }
+
+/* ====================== أدوات ====================== */
+function isoDate(d){ const z=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate()); }
+const isDate = v => typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const days = (a,b=TODAY_S) => Math.round((new Date(b)-new Date(a))/864e5);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Number(n).toLocaleString('en-US');
+const ltr = s => `<span class="ltr">${esc(s)}</span>`;
+const regAr = k => REG[k]?REG[k].ar:(k||'—');
+function can(perm, site){
+  const u=me(); const roles=S.grants[perm]||[];
+  if(!roles.includes(u.role)) return false;
+  if(site && u.regions && !u.regions.includes(site.rg)) return false;
+  return true;
+}
+function inScope(site){ const u=me(); return !u.regions || u.regions.includes(site.rg); }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+function audit(site, action, detail){ S.audit.unshift({t:new Date().toISOString(), site, by:me().name, role:me().role, action, detail}); }
+function notify(roles, regions, text, site){ S.notif.unshift({t:TODAY_S, roles, regions, text, site, id:S.seq++}); }
+function hav(a,b,c,d){ const R=6371000, r=x=>x*Math.PI/180; const dl=r(c-a), dn=r(d-b);
+  const h=Math.sin(dl/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(dn/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+
+/* ====================== محرك المراحل والبوابات ====================== */
+const yes = v => v==='Yes';
+const isNA = v => v==='N/A';
+function cwNone(s){ return isNA(s.s.te) && isNA(s.s.sa); }
+/* «غير منطبق» يُستنتج من نطاق العمل فقط */
+function scopeNA(s,c){
+  const sc=s.s;
+  if(cwNone(s) && [34,35,36,38,41,43,45,47,52,53,54,55,56,57,58,59,60,61,62,64,72,73,74,161].includes(c)) return 'نطاق CW: لا أعمال مدنية';
+  if(isNA(sc.te) && [53,54,55].includes(c)) return 'Tower Erection = N/A';
+  if(isNA(sc.sa) && c>=56 && c<=62) return 'Site Adaption = N/A';
+  if(isNA(sc.ge) && c===75) return 'GECOL Power = N/A';
+  if(isNA(sc.hl) && c===76) return 'HLC Fiber = N/A';
+  if(yes(sc.ip) && [89,91,92].includes(c)) return 'TE SOW = IP Router Only';
+  if(['New Build','Expansion'].includes(s.ds) && c===110) return 'Delivery Scenario = '+s.ds;
+  if(sc.dm==='In-House' && [34,35,36].includes(c)) return 'CW Delivery Model = In-House';
+  return null;
+}
+function rawVal(s,c){ const o=S.ov[s.id]?.[c]; if(o) return o.st==='done'?o.d:(o.st==='wip'?'جارٍ':null); return s.v[c]; }
+function itemState(s,c){
+  const why=scopeNA(s,c); if(why) return {st:'na', why, val:'غير منطبق'};
+  const o=S.ov[s.id]?.[c];
+  if(o) return {st:o.st==='done'?'done':o.st==='wip'?'wip':'pending', val:o.st==='done'?o.d:o.st==='wip'?'جارٍ':'مطلوب', date:o.st==='done'?o.d:null, edited:true};
+  const v=s.v[c];
+  if(v==null) return {st:'pending', val:'—'};
+  if(isDate(v)) return {st:'done', val:v, date:v};
+  const t=String(v).toLowerCase();
+  if(t==='n/a') return {st:'na', val:'N/A', why:'مُدخل N/A في الملف'};
+  if(t==='pending') return {st:'pending', val:'Pending'};
+  if(t==='cancelled') return {st:'cancelled', val:'Cancelled'};
+  if(['fail','rollback','no','degraded'].includes(t)) return {st:'fail', val:v};
+  return {st:'done', val:v};
+}
+const RESOLVED = st => st==='done'||st==='na'||st==='cancelled';
+function siteCancelled(s){ return s.v[19]==='Cancelled' || s.v[20]==='Cancelled'; }
+
+const CACHE = new Map();
+function model(s){
+  if(CACHE.has(s.id)) return CACHE.get(s.id);
+  const cancelled = siteCancelled(s);
+  const st = STAGES.map((g,i)=>{
+    const items = g.items.map(([c,l,own])=>Object.assign({c,l,own:own||g.owner}, itemState(s,c)));
+    const msv = g.msCol ? rawVal(s,g.msCol) : null;
+    const msDate = isDate(msv)?msv:null;
+    const dates = items.map(x=>x.date).filter(Boolean).sort();
+    return {i, g, items, msDate, maxDate:dates[dates.length-1]||null,
+      resolved: items.every(x=>RESOLVED(x.st)), any: items.some(x=>x.st==='done'||x.st==='wip')};
+  });
+  const laterActive = st.map((x,i)=>st.slice(i+1).some(y=>y.any||y.msDate));
+  st.forEach((x,i)=>{
+    const a=S.appr[s.id]?.[i];
+    if(cancelled) x.status='cancelled';
+    else if((i===1||i===2) && cwNone(s)) { x.status='na'; x.kind='scope'; }
+    else if(a && !S.unlock[s.id]?.[i]) { x.status='done'; x.date=a.d; x.kind='approved'; x.appr=a; }
+    else if(x.msDate) { x.status='done'; x.date=x.msDate; x.kind='migration'; }
+    else if(!x.g.msCol && x.resolved && laterActive[i]) { x.status='done'; x.date=x.maxDate; x.kind='migration'; }
+    else if(x.resolved) x.status='ready';
+    else if(x.any) x.status='active';
+    else x.status='pending';
+    if(S.unlock[s.id]?.[i] && x.status==='done' && x.kind==='migration') x.status = x.resolved?'ready':'active';
+  });
+  const PASS = x=>x.status==='done'||x.status==='na';
+  let cur = st.findIndex(x=>!PASS(x)); if(cur<0) cur=10;
+  const flags=[];
+  st.forEach((x,i)=>{
+    if(x.status==='done' && !x.resolved) flags.push({k:'bypass', i, t:`${x.g.n}: مَعلم مسجل وبنود ناقصة (${x.items.filter(y=>!RESOLVED(y.st)).map(y=>y.l).join('، ')})`});
+    if(x.status==='done' && st.slice(0,i).some(y=>!PASS(y))) flags.push({k:'order', i, t:`${x.g.n}: مسجل قبل اجتياز مرحلة سابقة`});
+  });
+  const prevDates = st.slice(0,Math.min(cur,10)).filter(x=>x.status==='done'&&x.date).map(x=>x.date).sort();
+  const since = cancelled?null: (prevDates.length?prevDates[prevDates.length-1]:null);
+  const m = {s, st, cur, cancelled, since, age: since?days(since):null, flags,
+    scopeMissing: [s.s.ge,s.s.hl,s.s.dm].some(v=>v==null)};
+  CACHE.set(s.id,m); return m;
+}
+function curLabel(m){ if(m.cancelled) return '<span class="pill p-bad">ملغى</span>'; if(m.cur>=10) return '<span class="pill p-ok">مغلق</span>';
+  const x=m.st[m.cur]; const cls={ready:'p-warn',active:'p-info',pending:'p-na'}[x.status]||'p-na';
+  return `<span class="pill ${cls}"><span class="ltr">${esc(x.g.n)}</span>${x.status==='ready'?' · جاهزة للاعتماد':''}</span>`; }
+
+/* ====================== الهيكل والتنقل ====================== */
+const NAV = [
+  ['dashboard','لوحة المتابعة'],['sites','المواقع'],['new','إضافة موقع'],['tasks','مهامي'],
+  ['quality','جودة البيانات'],['settings','الصلاحيات والإعدادات'],['about','حول النموذج'],
+];
+function myTasks(){
+  const u=me(); const out={req:[],gates:[],changes:[],notif:[]};
+  S.requests.forEach(r=>{
+    if(r.status==='pending_review' && can('site.review',r.site)) out.req.push(r);
+    if(r.status==='pending_approval' && can('site.approve',r.site)) out.req.push(r);
+    if(r.status==='rejected' && r.by===u.id) out.req.push(r);
+  });
+  S.changes.forEach(c=>{ if(c.status==='pending' && can('change.approve',BYID.get(c.site))) out.changes.push(c); });
+  SITES.forEach(s=>{ const m=model(s); if(m.cancelled||m.cur>=10) return; const x=m.st[m.cur];
+    if(x.status==='ready' && can(gatePerm(m.cur),s)) out.gates.push(m); });
+  out.notif = S.notif.filter(n=>(!n.roles||n.roles.includes(u.role)) && (!n.regions||!u.regions||n.regions.some(r=>u.regions.includes(r))));
+  return out;
+}
+function renderNav(){
+  const route=(location.hash.slice(2)||'dashboard').split('/')[0];
+  const t=myTasks(); const cnt=t.req.length+t.changes.length+t.gates.length;
+  document.getElementById('nav').innerHTML = NAV.map(([k,l])=>{
+    if(k==='new' && !can('site.create')) return '';
+    const b = k==='tasks'&&cnt ? `<span class="badge">${cnt>99?'99+':cnt}</span>`:'';
+    return `<a href="#/${k}" class="${route===k||(k==='sites'&&route==='site')?'on':''}">${l}${b}</a>`;
+  }).join('') + `<div class="sep"></div><div class="who">الدور: ${esc(ROLES[me().role])}</div>
+   <div class="who">النطاق: ${me().regions?me().regions.map(regAr).join('، '):'المشروع كاملاً'}</div>`;
+}
+function route(){
+  const [r,...rest]=(location.hash.slice(2)||'dashboard').split('/');
+  const arg=decodeURIComponent(rest.join('/'));
+  renderNav();
+  const main=document.getElementById('main');
+  const views={dashboard:vDashboard, sites:vSites, site:vSite, new:vNew, tasks:vTasks, quality:vQuality, settings:vSettings, about:vAbout};
+  main.innerHTML = (views[r]||vDashboard)(arg);
+  window.scrollTo(0,0);
+  (AFTER.shift()||(()=>{}))();
+}
+const AFTER=[];
+function rerender(){ save(); route(); }
+
+/* ====================== لوحة المتابعة ====================== */
+function vDashboard(){
+  const ms = SITES.filter(inScope).map(model);
+  const live = ms.filter(m=>!m.cancelled);
+  const onair = live.filter(m=>m.st[5].status==='done').length;
+  const tepac = live.filter(m=>m.st[6].status==='done').length;
+  const ready = live.filter(m=>m.cur<10 && m.st[m.cur].status==='ready').length;
+  const noPac = live.filter(m=>m.st[5].status==='done' && m.st[6].status!=='done');
+  const noPac30 = noPac.filter(m=>m.st[5].date && days(m.st[5].date)>30).length;
+  const funnel = STAGES.map((g,i)=>{ const d=live.filter(m=>m.st[i].status==='done').length, n=live.filter(m=>m.st[i].status==='na').length; return {g,d,n}; });
+  const max = live.length||1;
+  const regs = REGIONS.filter(r=>!me().regions||me().regions.includes(r.k));
+  const heat = regs.map(r=>{ const rs=live.filter(m=>m.s.rg===r.k); return {r, tot:rs.length, by:STAGES.map((g,i)=>rs.filter(m=>m.cur===i).length).concat([rs.filter(m=>m.cur>=10).length])}; });
+  const hmax = Math.max(1,...heat.flatMap(h=>h.by));
+  const stuck = live.filter(m=>m.cur<10 && m.age!=null).sort((a,b)=>b.age-a.age).slice(0,12);
+  const buckets=[[0,30],[31,90],[91,180],[181,365],[366,1e9]];
+  return `
+  <h1>لوحة المتابعة</h1>
+  <div class="sub">كل رقم محسوب لحظياً من سجلات المراحل · تاريخ التقرير: ${ltr(TODAY_S)} ${me().regions?'· نطاقك: '+me().regions.map(regAr).join('، '):''}</div>
+  <div class="grid g4">
+    <div class="card kpi"><div class="l">المواقع الفعالة</div><div class="v">${fmt(live.length)}</div><div class="n">ملغاة: ${ms.length-live.length}</div></div>
+    <div class="card kpi"><div class="l">على الهواء (On-Air)</div><div class="v">${fmt(onair)}</div><div class="n">${Math.round(onair/max*100)}% من المواقع الفعالة</div></div>
+    <div class="card kpi"><div class="l">استلمت TE PAC</div><div class="v">${fmt(tepac)}</div><div class="n">${Math.round(tepac/max*100)}% من المواقع الفعالة</div></div>
+    <div class="card kpi"><div class="l">بوابات جاهزة تنتظر الاعتماد</div><div class="v" style="color:var(--warn)">${fmt(ready)}</div><div class="n"><a href="#/sites/ready">عرض القائمة</a></div></div>
+    <div class="card kpi"><div class="l">على الهواء بلا TE PAC (R-016)</div><div class="v" style="color:var(--bad)">${fmt(noPac.length)}</div><div class="n">منها ${noPac30} تجاوزت 30 يوماً · <a href="#/sites/nopac">عرض</a></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h2>قمع الإنجاز: كم موقعاً اجتاز كل مرحلة</h2>
+      <table class="funnel">${funnel.map(f=>`<tr>
+        <td style="width:150px"><span class="ltr small" style="font-weight:600">${esc(f.g.n)}</span><div class="small muted">${esc(f.g.ar)}</div></td>
+        <td><div class="bar" title="منجز ${f.d} · غير منطبق ${f.n}"><i style="width:${f.d/max*100}%;float:right"></i><i class="na" style="width:${f.n/max*100}%;float:right"></i></div></td>
+        <td style="width:110px" class="small"><b>${fmt(f.d)}</b>${f.n?` <span class="muted">+ ${f.n} غير منطبق</span>`:''}</td></tr>`).join('')}</table>
+      <div class="small muted" style="margin-top:6px">الرمادي: مواقع عبرت المرحلة بحكم نطاق عملها («غير منطبق»)، وتُعرض منفصلة حتى لا تضخّم نسبة الإنجاز.</div>
+    </div>
+    <div class="card">
+      <h2>أين يقف كل موقع الآن، حسب المنطقة</h2>
+      <div style="overflow-x:auto"><table class="heat"><tr><th>المنطقة</th>${STAGES.map(g=>`<th title="${esc(g.ar)}"><span class="ltr">${esc(g.n.split(' ')[0])}</span></th>`).join('')}<th>مغلق</th><th>المجموع</th></tr>
+      ${heat.map(h=>`<tr><td style="text-align:start">${esc(h.r.ar)}</td>${h.by.map((v,i)=>`<td style="background:${v?`rgba(31,58,104,${.08+.8*v/hmax})`:'transparent'};color:${v/hmax>.5?'#fff':'inherit'}">${v?`<a style="color:inherit" href="#/sites/r=${encodeURIComponent(h.r.k)}&c=${i}">${v}</a>`:''}</td>`).join('')}<td><b>${h.tot}</b></td></tr>`).join('')}
+      </table></div>
+      <div class="small muted" style="margin-top:6px">المرحلة الحالية = أول مرحلة لم تُنجز ولم تكن «غير منطبقة». اضغط أي رقم لعرض المواقع.</div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h2>أقدم المواقع العالقة في مرحلتها</h2>
+      <table><tr><th>الموقع</th><th>المنطقة</th><th>المرحلة الحالية</th><th>منذ</th><th>المسؤول</th></tr>
+      ${stuck.map(m=>`<tr class="click" onclick="go('site/${encodeURIComponent(m.s.id)}')"><td class="mono">${esc(m.s.id)}</td><td>${esc(regAr(m.s.rg))}</td><td>${curLabel(m)}</td><td><b>${m.age}</b> يوماً</td><td class="small">${m.st[m.cur].g.owner.map(r=>esc(ROLES[r])).join('، ')}</td></tr>`).join('')}
+      </table>
+    </div>
+    <div class="card">
+      <h2>تقادم «على الهواء بلا TE PAC»</h2>
+      <p class="small muted" style="margin-top:-6px">الخطر R-016: الأيام منذ تاريخ On-Air.</p>
+      <table class="funnel">${buckets.map(([a,b])=>{ const n=noPac.filter(m=>{const d=m.st[5].date?days(m.st[5].date):0; return d>=a&&d<=b;}).length;
+        return `<tr><td style="width:120px">${b>1e8?`أكثر من ${a-1} يوماً`:`${a}–${b} يوماً`}</td><td><div class="bar"><i style="width:${n/Math.max(1,noPac.length)*100}%;float:right;background:${a>180?'var(--bad)':a>30?'#f79009':'var(--acc)'}"></i></div></td><td style="width:50px"><b>${n}</b></td></tr>`;}).join('')}</table>
+      <div class="note warn">السبب الأكثر شيوعاً في البيانات: بنود SSV وPAT ناقصة. افتح أي موقع لترى البنود الناقصة باسم مالكها.</div>
+    </div>
+  </div>`;
+}
+
+/* ====================== قائمة المواقع ====================== */
+let LIST={q:'',r:'',c:'',f:'',page:0};
+function vSites(arg){
+  if(arg){ LIST={q:'',r:'',c:'',f:'',page:0};
+    if(arg==='ready') LIST.f='ready'; else if(arg==='nopac') LIST.f='nopac'; else if(arg==='flags') LIST.f='flags';
+    else arg.split('&').forEach(p=>{const [k,v]=p.split('='); LIST[k]=decodeURIComponent(v);}); history.replaceState(null,'','#/sites'); }
+  AFTER.push(()=>{ ['q','r','c','f'].forEach(k=>{ const el=document.getElementById('f_'+k); if(el){ el.value=LIST[k]; el.oninput=el.onchange=()=>{LIST[k]=el.value;LIST.page=0;drawList();}; }}); drawList(); });
+  const regs=REGIONS.filter(r=>!me().regions||me().regions.includes(r.k));
+  return `<div class="row"><h1>المواقع</h1>${can('site.create')?'<a class="btn pri right" href="#/new">+ إضافة موقع</a>':''}</div>
+  <div class="sub">${me().regions?'تظهر مواقع منطقتك فقط':'كل مواقع المشروع'} · اضغط أي صف لفتح الموقع</div>
+  <div class="filters card" style="padding:10px 12px">
+    <input id="f_q" placeholder="بحث بالرمز أو الاسم أو رمز المالك" style="min-width:240px">
+    <select id="f_r"><option value="">كل المناطق</option>${regs.map(r=>`<option value="${esc(r.k)}">${esc(r.ar)}</option>`).join('')}</select>
+    <select id="f_c"><option value="">كل المراحل الحالية</option>${STAGES.map((g,i)=>`<option value="${i}">${esc(g.n)} · ${esc(g.ar)}</option>`).join('')}<option value="10">مغلق</option></select>
+    <select id="f_f"><option value="">كل الحالات</option><option value="ready">بوابة جاهزة للاعتماد</option><option value="nopac">على الهواء بلا TE PAC</option><option value="flags">عليه ملاحظات جودة بيانات</option><option value="cancelled">ملغى</option><option value="mine">بانتظاري أنا</option></select>
+    <span id="cnt" class="muted small right"></span>
+  </div>
+  <div class="card" style="padding:0;overflow:auto"><table id="tbl"></table></div>
+  <div class="row" style="margin-top:10px;justify-content:center" id="pager"></div>`;
+}
+function filteredSites(){
+  const q=LIST.q.trim().toLowerCase();
+  return SITES.filter(inScope).map(model).filter(m=>{
+    const s=m.s;
+    if(q && ![s.id,s.nm,s.own].some(v=>String(v||'').toLowerCase().includes(q))) return false;
+    if(LIST.r && s.rg!==LIST.r) return false;
+    if(LIST.c!=='' && !m.cancelled && String(Math.min(m.cur,10))!==LIST.c) return false;
+    if(LIST.c!=='' && m.cancelled) return false;
+    if(LIST.f==='ready' && !(m.cur<10 && !m.cancelled && m.st[m.cur].status==='ready')) return false;
+    if(LIST.f==='nopac' && !(!m.cancelled && m.st[5].status==='done' && m.st[6].status!=='done')) return false;
+    if(LIST.f==='flags' && !(m.flags.length||m.scopeMissing)) return false;
+    if(LIST.f==='cancelled' && !m.cancelled) return false;
+    if(LIST.f==='mine' && !(m.cur<10 && !m.cancelled && m.st[m.cur].status==='ready' && can(gatePerm(m.cur),s))) return false;
+    return true;
+  });
+}
+function drawList(){
+  const rows=filteredSites(); const per=50; const pages=Math.ceil(rows.length/per);
+  LIST.page=Math.min(LIST.page,Math.max(0,pages-1));
+  document.getElementById('cnt').textContent=fmt(rows.length)+' موقعاً';
+  document.getElementById('tbl').innerHTML = `<tr><th>الرمز</th><th>الاسم</th><th>المنطقة</th><th>النوع</th><th>المرحلة الحالية</th><th>منذ (يوم)</th><th>تقدم المراحل</th><th></th></tr>`+
+   (rows.slice(LIST.page*per,(LIST.page+1)*per).map(m=>`<tr class="click" onclick="go('site/${encodeURIComponent(m.s.id)}')">
+     <td class="mono"><b>${esc(m.s.id)}</b></td><td>${esc(m.s.nm)}</td><td>${esc(regAr(m.s.rg))}</td><td class="mono small">${esc(m.s.ty)}</td>
+     <td>${curLabel(m)}</td><td>${m.age??'—'}</td>
+     <td><div class="row" style="gap:2px;flex-wrap:nowrap">${m.st.map(x=>`<span title="${esc(x.g.n)}" style="width:12px;height:12px;border-radius:3px;display:inline-block;background:${({done:'var(--ok)',na:'#c7ccd6',ready:'#f79009',active:'#84adff',cancelled:'var(--bad)'})[x.status]||'#e4e7ec'}"></span>`).join('')}</div></td>
+     <td>${m.flags.length||m.scopeMissing?'<span class="pill p-warn" title="ملاحظات جودة بيانات">!</span>':''}</td></tr>`).join('') || `<tr><td colspan="8" class="empty">لا توجد مواقع مطابقة</td></tr>`);
+  document.getElementById('pager').innerHTML = pages>1 ? Array.from({length:pages},(_,i)=>`<button class="btn sm ${i===LIST.page?'pri':''}" onclick="LIST.page=${i};drawList()">${i+1}</button>`).join('') : '';
+}
+function go(r){ location.hash='#/'+r; }
+
+/* ====================== صفحة الموقع ====================== */
+let SEL_STAGE=null;
+function vSite(id){
+  const s=BYID.get(id);
+  if(!s) return `<div class="empty">الموقع ${esc(id)} غير موجود</div>`;
+  if(!inScope(s)) return `<div class="card note bad">هذا الموقع خارج نطاق صلاحياتك (${esc(regAr(s.rg))}).</div>`;
+  const m=model(s);
+  const sel = SEL_STAGE?.id===id ? SEL_STAGE.i : Math.min(m.cur,9);
+  const x=m.st[sel];
+  const sc=s.s;
+  const scopeChip=(l,v)=>`<span class="pill ${v==='Yes'?'p-info':v==='N/A'?'p-na':v==null?'p-bad':'p-info'}">${esc(l)}: ${v==null?'غير محدد':esc(v)}</span>`;
+  const iss=S.issues[id];
+  const log=S.audit.filter(a=>a.site===id);
+  return `
+  <div class="row"><a href="#/sites" class="small">→ المواقع</a></div>
+  <div class="row" style="margin:6px 0 2px"><h1 class="mono" style="margin:0">${esc(s.id)}</h1><span style="font-size:18px">${esc(s.nm)}</span>
+    ${m.cancelled?'<span class="pill p-bad">ملغى</span>':''}${s.isNew?'<span class="pill p-info">أُنشئ في النظام</span>':''}
+    <span class="right">${curLabel(m)}</span></div>
+  <div class="sub">${esc(regAr(s.rg))}${s.sr?' · '+esc(s.sr):''} · <span class="ltr">${esc(s.ty)} · ${esc(s.sc||'')}</span> ${m.age!=null&&m.cur<10?` · في مرحلته الحالية منذ <b>${m.age}</b> يوماً`:''}</div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="row" style="margin-bottom:8px"><h2 style="margin:0">دورة حياة الموقع</h2><span class="small muted right">اضغط مرحلة لعرض بنودها · ◆ = بوابة</span></div>
+    <div class="life">${m.st.map((y,i)=>{
+      const gate = i>0 ? (()=>{ const p=m.st[i-1]; const cls=p.status==='na'?'auto':p.status==='done'?'passed':p.status==='ready'?'ready':''; return `<div class="gate ${cls}" title="G${i} · ${GATES[i]}"><small>G${i}</small><b></b></div>`; })() : '';
+      return gate+`<div class="stg ${y.status} ${i===sel?'sel':''}" onclick="SEL_STAGE={id:'${esc(id)}',i:${i}};route()">
+        <div class="t">${esc(y.g.n)}</div><div class="a">${esc(y.g.ar)}</div>
+        <div class="d">${y.status==='done'?esc(y.date||'✓'):y.status==='na'?'غير منطبق':y.status==='ready'?'جاهزة':y.status==='active'?'جارٍ':y.status==='cancelled'?'ملغى':'—'}</div></div>`;}).join('')}</div>
+    <div class="row small muted" style="gap:14px"><span><span class="pill p-ok">منجز</span></span><span><span class="pill p-warn">جاهزة للاعتماد</span></span><span><span class="pill p-info">جارٍ</span></span><span><span class="pill p-na">غير منطبق بحكم النطاق</span></span></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr)">
+    <div class="card">${stagePanel(m,sel)}</div>
+    <div class="grid" style="align-content:start">
+      <div class="card">${gatePanel(m,sel)}</div>
+      <div class="card"><h3>نطاق العمل (SOW)</h3>
+        <div class="row" style="gap:6px">${scopeChip('Tower Erection',sc.te)}${scopeChip('Site Adaption',sc.sa)}${scopeChip('GECOL Power',sc.ge)}${scopeChip('HLC Fiber',sc.hl)}
+        ${scopeChip('TE',yes(sc.ip)?'IP Router Only':yes(sc.fu)?'Full Scope':null)}${scopeChip('Model',sc.dm)}${scopeChip('Scenario',s.ds)}</div>
+        <p class="small muted">النطاق يحدد آلياً ما هو «غير منطبق». تغييره بطلب <span class="ltr">Scope Change</span> يعتمده مدير المشروع.</p>
+        ${m.scopeMissing?'<div class="note bad small">نطاق الموقع غير مكتمل: لا يمكن معرفة كل المراحل المنطبقة.</div>':''}
+      </div>
+      <div class="card"><h3>هوية الموقع</h3><dl class="kv">
+        <dt>Site Owner ID</dt><dd class="mono">${esc(s.own||'—')}</dd><dt>الإحداثيات</dt><dd class="mono">${esc(s.la)}, ${esc(s.lo)}</dd>
+        <dt>Tower</dt><dd class="ltr">${esc([s.to,s.en,s.rt,s.tt,s.th?s.th+' m':''].filter(Boolean).join(' · '))}</dd>
+        <dt>Uplink</dt><dd class="mono">${esc(s.up||'—')}</dd><dt>المرحلة / الدفعة</dt><dd class="ltr">${esc([s.ph,s.bt].filter(Boolean).join(' · '))}</dd></dl></div>
+      <div class="card"><div class="row"><h3 style="margin:0">مشكلة الموقع</h3>${can('issue.edit',s)?`<button class="btn sm right" onclick="editIssue('${esc(id)}')">${iss?'تحديث':'تسجيل مشكلة'}</button>`:''}</div>
+        ${iss?`<dl class="kv" style="margin-top:8px"><dt>المشكلة</dt><dd>${esc(iss.text)}</dd><dt>المسؤول</dt><dd>${esc(ROLES[iss.owner]||iss.owner)}</dd><dt>الحالة</dt><dd><span class="pill ${iss.status==='Closed'?'p-ok':'p-warn'}">${esc(iss.status)}</span></dd><dt>منذ</dt><dd>${esc(iss.d)}</dd></dl>`:'<p class="small muted">لا توجد مشكلة مسجلة. يديرها منسق المنطقة.</p>'}
+      </div>
+      ${m.flags.length?`<div class="card"><h3>ملاحظات جودة البيانات (من الترحيل)</h3><ul class="chk">${m.flags.map(f=>`<li><span class="ic fail">!</span>${esc(f.t)}</li>`).join('')}</ul></div>`:''}
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>سجل التدقيق</h3><ul class="chk audit">
+    ${log.map(a=>`<li><span class="mono small muted">${esc(a.t.slice(0,16).replace('T',' '))}</span> · <b>${esc(a.by)}</b> · ${esc(a.action)} ${a.detail?'· '+esc(a.detail):''}</li>`).join('')}
+    <li class="muted">${s.isNew?'أُنشئ عبر مسار إنشاء الموقع':'رُحّل من Master (GSDN_Site_Master_Template.xlsx) · المراحل المنجزة فيه اعتُمدت بنوع «ترحيل»'}</li></ul></div>`;
+}
+function canEditItem(m,i,it){
+  if(m.cancelled || it.st==='na') return false;
+  const x=m.st[i]; if(x.status==='done' || x.status==='na') return false;
+  return it.own.includes(me().role) && inScope(m.s);
+}
+function stagePanel(m,i){
+  const x=m.st[i]; const g=x.g;
+  const locked = x.status==='done';
+  const ownerNames = g.owner.map(r=>esc(ROLES[r])).join('، ');
+  return `<div class="row"><h2 style="margin:0"><span class="ltr">${esc(g.n)}</span> · ${esc(g.ar)}</h2>
+     <span class="right small muted">يُغلقها المَعلم: <span class="ltr">${esc(g.ms)}</span></span></div>
+   <div class="small muted" style="margin:4px 0 10px">مالك الإدخال: ${ownerNames}</div>
+   ${x.status==='na'?`<div class="note">المرحلة كاملة «غير منطبقة» بحكم نطاق العمل (لا أعمال مدنية). البوابة تتجاوزها آلياً دون معتمِد، ولا يُجمَّد لها خط مرجعي.</div>`:''}
+   ${locked?`<div class="note ok">المرحلة منجزة بتاريخ ${ltr(x.date||'—')} ${x.kind==='approved'?`· اعتمدها ${esc(x.appr.by)}`:'· «ترحيل» من الملف'}. الحقول مقفلة ولا تُفتح إلا بطلب تعديل مسجل بسبب.
+      <div style="margin-top:6px"><button class="btn sm" onclick="requestChange('${esc(m.s.id)}',${i})">طلب تعديل</button></div></div>`:''}
+   <table class="items"><tr><th style="width:26px"></th><th>البند</th><th>القيمة</th><th>المالك</th><th></th></tr>
+   ${x.items.map(it=>`<tr><td><span class="ic ${it.st}">${({done:'✓',na:'–',pending:'○',wip:'◐',fail:'✕',cancelled:'✕'})[it.st]}</span></td>
+      <td>${esc(it.l)}<div class="small muted mono">Master col ${it.c}</div></td>
+      <td>${it.st==='na'?`<span class="pill p-na" title="${esc(it.why||'')}">غير منطبق</span><div class="small muted">${esc(it.why||'')}</div>`:`<span class="${isDate(it.val)?'mono':''}">${esc(it.val)}</span>${it.edited?' <span class="pill p-info">معدّل</span>':''}`}</td>
+      <td class="small muted">${it.own.map(r=>esc(ROLES[r])).join('، ')}</td>
+      <td>${canEditItem(m,i,it)?`<button class="btn sm" onclick="editItem('${esc(m.s.id)}',${i},${it.c})">تحديث</button>`:''}</td></tr>`).join('')}
+   </table>
+   ${g.msCol?`<div class="small muted" style="margin-top:8px">المَعلم في الملف: عمود ${g.msCol} = ${ltr(x.msDate||'فارغ')}</div>`:''}`;
+}
+function gatePanel(m,i){
+  if(i===0) return `<h3>بداية الدورة</h3><p class="small muted">يدخل الموقع المرحلة الأولى عند اعتماده من مدير المشروع، ويُجمَّد خطها المرجعي من تاريخ الاعتماد.</p>`+nextGate(m,i);
+  return nextGate(m,i);
+}
+function nextGate(m,i){
+  const x=m.st[i]; const perm=gatePerm(i);
+  const gName = i<9 ? `G${i+1} · ${GATES[i+1]}` : 'الإغلاق النهائي';
+  const opens = i<9 ? STAGES[i+1].n : null;
+  const holders = (S.grants[perm]||[]).map(r=>ROLES[r]);
+  let body='';
+  if(x.status==='na') body=`<div class="note">تُعبر آلياً: المرحلة غير منطبقة.</div>`;
+  else if(x.status==='done') body=`<div class="note ok">اجتيزت بتاريخ ${ltr(x.date||'—')} ${x.kind==='approved'?'· اعتمدها '+esc(x.appr.by)+' بصلاحية '+ltr(x.appr.perm):'(ترحيل)'}</div>`;
+  else {
+    const missing=x.items.filter(y=>!RESOLVED(y.st));
+    const prevOk = m.st.slice(0,i).every(y=>y.status==='done'||y.status==='na');
+    body = `<ul class="chk">
+      <li><span class="ic ${prevOk?'done':'pending'}">${prevOk?'✓':'○'}</span>المراحل السابقة مجتازة</li>
+      <li><span class="ic ${missing.length?'pending':'done'}">${missing.length?'○':'✓'}</span>بنود المرحلة مكتملة أو غير منطبقة ${missing.length?`<span class="muted">(ينقص ${missing.length}: ${missing.map(y=>esc(y.l)).join('، ')})</span>`:''}</li>
+      <li><span class="ic ${can(perm,m.s)?'done':'pending'}">${can(perm,m.s)?'✓':'○'}</span>${can(perm,m.s)?'تملك صلاحية الاعتماد':'لا تملك صلاحية الاعتماد'} <span class="mono small">${esc(perm)}</span></li></ul>
+      <div class="small muted" style="margin:6px 0">أصحاب الصلاحية: ${holders.length?holders.map(esc).join('، '):'<b style="color:var(--bad)">لا أحد · بوابة بلا معتمِد</b>'}</div>
+      ${x.status==='ready'&&prevOk&&can(perm,m.s)?`<button class="btn ok" onclick="approveGate('${esc(m.s.id)}',${i})">اعتماد ${i<9?'البوابة':'الإغلاق'}</button>`:
+        `<button class="btn" disabled title="الزر لا يعمل قبل تحقق الشرط ووجود الصلاحية">اعتماد</button>`}`;
+  }
+  return `<h3>${i<9?'البوابة التالية':'الإغلاق'}: <span class="ltr">${esc(gName)}</span></h3>${opens?`<div class="small muted" style="margin-bottom:8px">تفتح مرحلة <span class="ltr">${esc(opens)}</span></div>`:''}${body}`;
+}
+
+/* ====================== إجراءات ====================== */
+function modal(html){ document.getElementById('modalRoot').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function editItem(id,i,c){
+  const s=BYID.get(id); const it=model(s).st[i].items.find(y=>y.c===c);
+  modal(`<h2>تحديث: ${esc(it.l)}</h2><p class="small muted">الحالة والتاريخ حقلان منفصلان. التاريخ مطلوب فقط عند «منجز».</p>
+   <div class="form" style="grid-template-columns:1fr 1fr">
+    <label class="f"><span class="req">الحالة</span><select id="m_st"><option value="req">مطلوب</option><option value="wip">جارٍ</option><option value="done">منجز</option></select></label>
+    <label class="f"><span>التاريخ</span><input type="date" id="m_d" max="${TODAY_S}" min="2020-01-01"></label></div>
+   <div id="m_err" class="note bad" style="display:none"></div>
+   <div class="row" style="margin-top:14px"><button class="btn pri" id="m_ok">حفظ</button><button class="btn" onclick="closeModal()">إلغاء</button></div>`);
+  const stSel=document.getElementById('m_st'); stSel.value=it.st==='done'?'done':it.st==='wip'?'wip':'req';
+  if(it.date) document.getElementById('m_d').value=it.date;
+  document.getElementById('m_ok').onclick=()=>{
+    const st=stSel.value, d=document.getElementById('m_d').value;
+    const err=document.getElementById('m_err');
+    if(st==='done' && !d){ err.style.display='block'; err.textContent='الحالة «منجز» تتطلب تاريخاً.'; return; }
+    if(d && (d>TODAY_S || d<'2020-01-01')){ err.style.display='block'; err.textContent='التاريخ خارج النطاق المسموح (2020-01-01 حتى اليوم).'; return; }
+    const before=it.val;
+    (S.ov[id]=S.ov[id]||{})[c]={st, d:st==='done'?d:null};
+    audit(id,`تحديث «${it.l}»`,`${before} ← ${st==='done'?d:st==='wip'?'جارٍ':'مطلوب'}`);
+    closeModal(); rerender(); toast('حُفظ التعديل وسُجّل في سجل التدقيق');
+  };
+}
+function approveGate(id,i){
+  const s=BYID.get(id); const perm=gatePerm(i);
+  if(!can(perm,s)) return toast('لا تملك الصلاحية');
+  modal(`<h2>اعتماد ${i<9?`البوابة <span class="ltr">G${i+1} · ${GATES[i+1]}</span>`:'الإغلاق النهائي'}</h2>
+   <p>الموقع <b class="mono">${esc(id)}</b>. بعد الاعتماد:</p>
+   <ul class="small"><li>تُقفل حقول مرحلة <span class="ltr">${esc(STAGES[i].n)}</span>.</li>${i<9?`<li>يدخل الموقع مرحلة <span class="ltr">${esc(STAGES[i+1].n)}</span> ويُجمَّد خطها المرجعي اليوم.</li>`:''}<li>يُسجَّل الاعتماد باسمك وبالصلاحية <span class="mono">${esc(perm)}</span>.</li></ul>
+   <div class="row" style="margin-top:14px"><button class="btn ok" id="m_ok">اعتماد</button><button class="btn" onclick="closeModal()">إلغاء</button></div>`);
+  document.getElementById('m_ok').onclick=()=>{
+    (S.appr[id]=S.appr[id]||{})[i]={d:TODAY_S, by:me().name, role:me().role, perm};
+    if(S.unlock[id]) delete S.unlock[id][i];
+    audit(id, i<9?`اعتماد البوابة G${i+1}`:'اعتماد الإغلاق النهائي', `بصلاحية ${perm}`);
+    if(i<9) notify(null,[s.rg],`${id}: دخل مرحلة ${STAGES[i+1].n}`,id);
+    SEL_STAGE={id,i:Math.min(i+1,9)}; closeModal(); rerender(); toast('اعتُمدت البوابة');
+  };
+}
+function requestChange(id,i){
+  modal(`<h2>طلب تعديل على مرحلة مقفلة</h2><p class="small muted">النوع: <span class="ltr">Data Correction</span>. يعتمده صاحب صلاحية <span class="mono">change.approve</span>.</p>
+   <label class="f"><span class="req">سبب التعديل</span><textarea id="m_r" rows="3"></textarea></label>
+   <div class="row" style="margin-top:14px"><button class="btn pri" id="m_ok">إرسال</button><button class="btn" onclick="closeModal()">إلغاء</button></div>`);
+  document.getElementById('m_ok').onclick=()=>{ const r=document.getElementById('m_r').value.trim(); if(!r) return toast('السبب إلزامي');
+    S.changes.unshift({id:S.seq++, site:id, stage:i, reason:r, by:me().name, d:TODAY_S, status:'pending', type:'Data Correction'});
+    audit(id,`طلب تعديل على ${STAGES[i].n}`,r); closeModal(); rerender(); toast('أُرسل الطلب'); };
+}
+function decideChange(cid,ok){
+  const c=S.changes.find(x=>x.id===cid); c.status=ok?'approved':'rejected'; c.decidedBy=me().name;
+  if(ok){ (S.unlock[c.site]=S.unlock[c.site]||{})[c.stage]=true; }
+  audit(c.site, ok?'اعتماد طلب تعديل':'رفض طلب تعديل', `${STAGES[c.stage].n}: ${c.reason}`); rerender();
+}
+function editIssue(id){
+  const iss=S.issues[id]||{text:'',owner:'TLCW',status:'Open'};
+  modal(`<h2>مشكلة الموقع ${esc(id)}</h2>
+   <label class="f"><span class="req">المشكلة (Pending Issue)</span><textarea id="m_t" rows="3">${esc(iss.text)}</textarea></label>
+   <div class="form" style="grid-template-columns:1fr 1fr;margin-top:10px">
+    <label class="f"><span>المسؤول (Issue Owner)</span><select id="m_o">${Object.entries(ROLES).filter(([k])=>!['RO','RC'].includes(k)).map(([k,v])=>`<option value="${k}" ${k===iss.owner?'selected':''}>${esc(v)}</option>`).join('')}</select></label>
+    <label class="f"><span>الحالة</span><select id="m_s">${['Open','In Progress','Closed'].map(v=>`<option ${v===iss.status?'selected':''}>${v}</option>`).join('')}</select></label></div>
+   <div class="row" style="margin-top:14px"><button class="btn pri" id="m_ok">حفظ</button><button class="btn" onclick="closeModal()">إلغاء</button></div>`);
+  document.getElementById('m_ok').onclick=()=>{ const t=document.getElementById('m_t').value.trim(); if(!t) return toast('نص المشكلة إلزامي');
+    S.issues[id]={text:t, owner:document.getElementById('m_o').value, status:document.getElementById('m_s').value, d:iss.d||TODAY_S};
+    audit(id,'تحديث مشكلة الموقع',t); notify([S.issues[id].owner],null,`${id}: مشكلة مسندة إليك — ${t}`,id); closeModal(); rerender(); };
+}
+
+/* ====================== إضافة موقع ====================== */
+let NEW=null;
+function blankNew(){ return {step:0, rg:'', serial:'', suffix:'', replaces:'', sr:'', nm:'', own:'', la:'', lo:'', ty:'', sc:'', up:'N/A', to:'', en:'', rt:'', tt:'', th:'', just:'',
+  ph:'PH1', bt:'', ds:'New Build', te:'', sa:'', ge:'', hl:'', tes:'', dm:'', nearOk:''}; }
+function suggestSerial(rg){ const p=REG[rg].p; const used=new Set(SITES.concat(S.requests.map(r=>r.site)).filter(s=>s.id.startsWith(p)).map(s=>parseInt(s.id.slice(2,5),10)));
+  let n=Math.max(0,...used)+1; return String(n).padStart(3,'0'); }
+function newCode(){ return NEW.rg ? REG[NEW.rg].p + (NEW.serial||'___') + (NEW.suffix?' '+NEW.suffix:'') : ''; }
+function vNew(){
+  if(!can('site.create')) return `<div class="card note bad">إنشاء المواقع من صلاحية فريق التصميم والاستملاك (RF Engineer، Team Lead Design & Acquisition). غيّر المستخدم من الأعلى لتجربة المسار.</div>`;
+  if(!NEW) NEW=blankNew();
+  AFTER.push(bindNew);
+  const st=['1 · هوية الموقع','2 · نطاق العمل','3 · المراجعة والإرسال'];
+  return `<h1>إضافة موقع جديد</h1><div class="sub">المسار: مسودة ← مراجعة Team Lead (Design & Acquisition) ← اعتماد مدير المشروع ← يدخل المرحلة الأولى</div>
+   <div class="steps">${st.map((t,i)=>`<div class="${i===NEW.step?'on':i<NEW.step?'dn':''}">${i<NEW.step?'✓ ':''}${t}</div>`).join('')}</div>
+   <div class="grid" style="grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr)">
+     <div class="card" id="newForm">${[newStep1,newStep2,newStep3][NEW.step]()}</div>
+     <div class="card" id="newSide" style="align-self:start;position:sticky;top:70px"></div>
+   </div>`;
+}
+const sel=(id,list,v,ph='— اختر —')=>`<select id="${id}"><option value="">${ph}</option>${list.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+function newStep1(){
+  const regs=REGIONS;
+  return `<h2>هوية الموقع</h2><div class="form">
+   <label class="f"><span class="req">المنطقة</span><select id="n_rg"><option value="">— اختر —</option>${regs.map(r=>`<option value="${esc(r.k)}" ${r.k===NEW.rg?'selected':''}>${esc(r.ar)} (${r.p})</option>`).join('')}</select></label>
+   <label class="f"><span class="req">الرقم التسلسلي</span><input id="n_serial" inputmode="numeric" maxlength="3" value="${esc(NEW.serial)}" placeholder="يُقترح آلياً"></label>
+   <label class="f"><span>لاحقة (للموقع البديل فقط)</span><select id="n_suffix"><option value="">بدون</option>${'ABCD'.split('').map(c=>`<option ${c===NEW.suffix?'selected':''}>${c}</option>`).join('')}</select></label>
+   ${NEW.suffix?`<label class="f"><span class="req">يحل محل الموقع</span><input id="n_replaces" value="${esc(NEW.replaces)}" placeholder="مثل TR103"></label>`:''}
+   <label class="f"><span class="req">المنطقة الفرعية</span><input id="n_sr" value="${esc(NEW.sr)}"></label>
+   <label class="f"><span class="req">اسم الموقع</span><input id="n_nm" value="${esc(NEW.nm)}"></label>
+   <label class="f"><span>Site Owner ID</span><input id="n_own" value="${esc(NEW.own)}" dir="ltr"></label>
+   <label class="f"><span class="req">Latitude</span><input id="n_la" value="${esc(NEW.la)}" dir="ltr" placeholder="32.8872"></label>
+   <label class="f"><span class="req">Longitude</span><input id="n_lo" value="${esc(NEW.lo)}" dir="ltr" placeholder="13.1913"></label>
+   <label class="f"><span class="req">Site Type</span>${sel('n_ty',LISTS.SiteType,NEW.ty)}</label>
+   <label class="f"><span class="req">Site Scenario</span>${sel('n_sc',LISTS.Scenario,NEW.sc)}</label>
+   <label class="f"><span class="req">Uplink Site</span><input id="n_up" value="${esc(NEW.up)}" dir="ltr" list="dl_sites"></label>
+   <label class="f"><span class="req">Tower Owner</span>${sel('n_to',LISTS.TowerOwner,NEW.to)}</label>
+   <label class="f"><span class="req">Existing or New</span>${sel('n_en',LISTS.ExistNew,NEW.en)}</label>
+   <label class="f"><span class="req">RT or GF</span>${sel('n_rt',LISTS.RTGF,NEW.rt)}</label>
+   <label class="f"><span class="req">Tower Type</span>${sel('n_tt',LISTS.TowerType,NEW.tt)}</label>
+   <label class="f"><span class="req">Tower Height (m)</span><input id="n_th" value="${esc(NEW.th)}" inputmode="decimal" dir="ltr"></label>
+   </div>
+   <label class="f" style="margin-top:12px"><span class="req">مبرر الإضافة (يقرؤه مدير المشروع)</span><textarea id="n_just" rows="2">${esc(NEW.just)}</textarea></label>
+   <datalist id="dl_sites"><option>N/A</option>${SITES.filter(s=>!NEW.rg||s.rg===NEW.rg).slice(0,300).map(s=>`<option>${esc(s.id)}</option>`).join('')}</datalist>
+   <div class="row" style="margin-top:14px"><button class="btn pri" id="n_next">التالي: نطاق العمل</button><button class="btn" onclick="NEW=null;route()">مسح النموذج</button></div>`;
+}
+function newStep2(){
+  const yn=(id,l,v)=>`<label class="f"><span class="req">${l}</span><select id="${id}"><option value="">— اختر —</option><option ${v==='Yes'?'selected':''}>Yes</option><option ${v==='N/A'?'selected':''}>N/A</option></select></label>`;
+  return `<h2>نطاق العمل (SOW)</h2><p class="small muted" style="margin-top:-6px">هذه الحقول تحدد آلياً المراحل والبنود «غير المنطبقة». لا يكتب أحد <span class="ltr">N/A</span> يدوياً بعد ذلك.</p>
+   <div class="form">
+   <label class="f"><span class="req">Project Phase</span>${sel('n_ph',LISTS.ProjectPhases,NEW.ph)}</label>
+   <label class="f"><span>Delivery Batch</span>${sel('n_bt',LISTS.DeliveryBatches,NEW.bt)}</label>
+   <label class="f"><span class="req">Delivery Scenario</span>${sel('n_ds',LISTS.DeliveryScenario,NEW.ds)}</label>
+   ${yn('n_te','CW SOW · Tower Erection',NEW.te)}${yn('n_sa','CW SOW · Site Adaption',NEW.sa)}
+   ${yn('n_ge','CW SOW · GECOL Power',NEW.ge)}${yn('n_hl','CW SOW · HLC Fiber',NEW.hl)}
+   <label class="f"><span class="req">TE SOW</span><select id="n_tes"><option value="">— اختر —</option><option value="full" ${NEW.tes==='full'?'selected':''}>Full Scope</option><option value="ip" ${NEW.tes==='ip'?'selected':''}>IP Router Only</option></select></label>
+   <label class="f"><span class="req">CW Delivery Model</span>${sel('n_dm',LISTS.DeliveryModel,NEW.dm)}</label>
+   </div>
+   <h3 style="margin-top:18px">معاينة: المراحل التي سيمر بها الموقع</h3><div id="n_preview"></div>
+   <div class="row" style="margin-top:14px"><button class="btn" id="n_back">السابق</button><button class="btn pri" id="n_next">التالي: المراجعة</button></div>`;
+}
+function draftSite(){
+  const n=NEW;
+  return {id:newCode(), own:n.own||null, nm:n.nm, rg:n.rg, sr:n.sr, la:parseFloat(n.la), lo:parseFloat(n.lo), ty:n.ty, sc:n.sc, up:n.up, to:n.to, en:n.en, rt:n.rt, tt:n.tt, th:parseFloat(n.th)||null,
+    ph:n.ph, bt:n.bt||null, ds:n.ds, isNew:true, replaces:n.suffix?n.replaces:null, just:n.just,
+    s:{te:n.te||null, sa:n.sa||null, ge:n.ge||null, hl:n.hl||null, fu:n.tes==='full'?'Yes':n.tes?'N/A':null, ip:n.tes==='ip'?'Yes':n.tes?'N/A':null, dm:n.dm||null}, v:{}};
+}
+function newChecks(){
+  const n=NEW, c=newCode(), out=[];
+  const add=(lvl,t)=>out.push({lvl,t});
+  if(!n.rg) add('pending','اختر المنطقة لتوليد بادئة الرمز');
+  else {
+    if(!/^\d{3}$/.test(n.serial)) add('bad','الرقم التسلسلي ثلاث خانات (مثل 166)');
+    else if(!CODE_RE.test(c)) add('bad','الرمز لا يطابق الصيغة');
+    else {
+      const taken = SITES.some(s=>s.id===c) || S.requests.some(r=>r.site.id===c && r.status!=='rejected') || RAW.stray.some(s=>s.id===c);
+      if(taken) add('bad',`الرمز ${c} مستخدم (بما فيه الملغى والشارد)`); else add('ok',`الرمز ${c} متاح ويطابق الصيغة`);
+    }
+    if(n.suffix && !BYID.get(n.replaces)) add('bad','الموقع البديل يجب أن يرتبط بموقع أصلي قائم');
+  }
+  const la=parseFloat(n.la), lo=parseFloat(n.lo);
+  if(n.la!==''||n.lo!==''){
+    if(isNaN(la)||isNaN(lo)) add('bad','الإحداثيات أرقام عشرية');
+    else if(la<19.5||la>33.5||lo<9.3||lo>25.2) add('bad','الإحداثيات خارج حدود ليبيا');
+    else {
+      const pool=SITES.concat(RAW.stray);
+      const exact=pool.find(s=>s.la===la&&s.lo===lo);
+      if(exact && !(n.suffix && exact.id===n.replaces)) add('bad',`إحداثيات مطابقة تماماً للموقع ${exact.id} (${exact.nm})`);
+      const near=pool.filter(s=>s!==exact && s.la!=null && hav(la,lo,s.la,s.lo)<=50);
+      if(near.length) add('warn',`ضمن 50 متراً: ${near.map(s=>`${s.id} (${Math.round(hav(la,lo,s.la,s.lo))} م)`).join('، ')} · يلزم تبرير`);
+      if(!exact && !near.length) add('ok','لا مواقع ضمن 50 متراً');
+    }
+  } else add('pending','أدخل الإحداثيات لفحص التكرار');
+  if(n.nm && n.rg){ const same=SITES.filter(s=>s.rg===n.rg && String(s.nm).trim()===n.nm.trim()); if(same.length) add('warn',`اسم مطابق في المنطقة: ${same.map(s=>s.id).join('، ')}`); }
+  if(n.ph){ const used=SITES.filter(s=>s.ph===n.ph && !siteCancelled(s)).length + S.requests.filter(r=>r.site.ph===n.ph && ['pending_review','pending_approval'].includes(r.status)).length;
+    const cap=S.contract[n.ph]||0;
+    if(used>=cap) add('warn',`${n.ph}: ${used} موقعاً من ${cap} متعاقد عليها · الإضافة تتطلب طلب Scope Change`);
+    else add('ok',`${n.ph}: ${used} من ${cap} متعاقد عليها`); }
+  return out;
+}
+function required1(){ const n=NEW; return ['rg','serial','sr','nm','la','lo','ty','sc','up','to','en','rt','tt','th','just'].filter(k=>!String(n[k]).trim()); }
+function required2(){ const n=NEW; return ['ph','ds','te','sa','ge','hl','tes','dm'].filter(k=>!n[k]); }
+function drawSide(){
+  const ch=newChecks(); const c=newCode();
+  document.getElementById('newSide').innerHTML = `<h3>الرمز</h3><div class="mono" style="font-size:24px;font-weight:700;margin-bottom:6px">${esc(c||'—')}</div>
+    <div class="small muted" style="margin-bottom:12px">البادئة من المنطقة ولا تُكتب يدوياً · الصيغة <code>${esc(CODE_RE.source)}</code></div>
+    <h3>الفحوصات الفورية</h3><ul class="chk">${ch.map(x=>`<li><span class="ic ${x.lvl==='ok'?'done':x.lvl==='bad'?'fail':x.lvl==='warn'?'wip':'pending'}">${x.lvl==='ok'?'✓':x.lvl==='bad'?'✕':x.lvl==='warn'?'!':'○'}</span>${esc(x.t)}</li>`).join('')}</ul>
+    ${NEW.step===0&&required1().length?`<div class="small muted" style="margin-top:8px">حقول إلزامية متبقية: ${required1().length}</div>`:''}`;
+  const pv=document.getElementById('n_preview');
+  if(pv){ const d=draftSite(); const m={s:d};
+    pv.innerHTML = `<table class="items">${STAGES.map((g,i)=>{ const stageNA=(i===1||i===2)&&cwNone(d);
+      const na=g.items.filter(([c])=>scopeNA(d,c)).map(([c,l])=>l);
+      return `<tr><td class="ltr small" style="width:150px;font-weight:600">${esc(g.n)}</td><td>${stageNA?'<span class="pill p-na">المرحلة كاملة غير منطبقة</span>':na.length?`<span class="pill p-warn">${na.length} من ${g.items.length} بنود غير منطبقة</span> <span class="small muted">${na.map(esc).join('، ')}</span>`:'<span class="pill p-info">كل البنود منطبقة</span>'}</td></tr>`;}).join('')}</table>
+      ${required2().length?'<div class="small muted">أكمل حقول النطاق لتكتمل المعاينة.</div>':''}`; }
+}
+function bindNew(){
+  const map={rg:'n_rg',serial:'n_serial',suffix:'n_suffix',replaces:'n_replaces',sr:'n_sr',nm:'n_nm',own:'n_own',la:'n_la',lo:'n_lo',ty:'n_ty',sc:'n_sc',up:'n_up',to:'n_to',en:'n_en',rt:'n_rt',tt:'n_tt',th:'n_th',just:'n_just',
+    ph:'n_ph',bt:'n_bt',ds:'n_ds',te:'n_te',sa:'n_sa',ge:'n_ge',hl:'n_hl',tes:'n_tes',dm:'n_dm'};
+  Object.entries(map).forEach(([k,id])=>{ const el=document.getElementById(id); if(!el) return;
+    el.oninput=el.onchange=()=>{ NEW[k]=el.value.trim?el.value:el.value;
+      if(k==='rg' && NEW.rg){ NEW.serial=suggestSerial(NEW.rg); const s=document.getElementById('n_serial'); if(s) s.value=NEW.serial; }
+      if(k==='suffix'){ route(); return; }
+      drawSide(); }; });
+  const nx=document.getElementById('n_next'), bk=document.getElementById('n_back');
+  if(bk) bk.onclick=()=>{NEW.step--;route();};
+  if(nx) nx.onclick=()=>{
+    if(NEW.step===0){ if(required1().length) return toast('أكمل الحقول الإلزامية'); if(newChecks().some(x=>x.lvl==='bad')) return toast('عالج الفحوصات المرفوضة أولاً'); }
+    if(NEW.step===1 && required2().length) return toast('أكمل نطاق العمل');
+    NEW.step++; route(); };
+  drawSide();
+}
+function newStep3(){
+  const d=draftSite(); const ch=newChecks(); const warns=ch.filter(x=>x.lvl==='warn'); const scopeChange=warns.some(x=>x.t.includes('Scope Change'));
+  return `<h2>المراجعة والإرسال</h2>
+   <dl class="kv"><dt>الرمز</dt><dd class="mono"><b>${esc(d.id)}</b></dd><dt>الاسم</dt><dd>${esc(d.nm)}</dd><dt>المنطقة</dt><dd>${esc(regAr(d.rg))} · ${esc(d.sr)}</dd>
+    <dt>الإحداثيات</dt><dd class="mono">${d.la}, ${d.lo}</dd><dt>النوع</dt><dd class="ltr">${esc([d.ty,d.sc,d.to,d.en,d.rt,d.tt,d.th+' m'].join(' · '))}</dd>
+    <dt>النطاق</dt><dd class="ltr">${esc([d.ph,d.ds,'TE:'+(yes(d.s.ip)?'IP Only':'Full'),'Tower:'+d.s.te,'Adaption:'+d.s.sa,'GECOL:'+d.s.ge,'HLC:'+d.s.hl,d.s.dm].join(' · '))}</dd>
+    <dt>المبرر</dt><dd>${esc(d.just)}</dd></dl>
+   ${warns.length?`<div class="note warn"><b>تحذيرات تظهر لمراجعي الطلب:</b><ul class="small" style="margin:4px 0 0">${warns.map(w=>`<li>${esc(w.t)}</li>`).join('')}</ul></div>
+     <label class="f"><span class="req">تبرير التحذيرات</span><textarea id="n_nearOk" rows="2">${esc(NEW.nearOk)}</textarea></label>`:''}
+   ${scopeChange?'<div class="note">سيُرسل الطلب بنوع <span class="ltr">Scope Change</span> لأنه يتجاوز العدد المتعاقد عليه.</div>':''}
+   <div class="note">بعد الإرسال: يراجعه Team Lead (Design & Acquisition)، ثم يعتمده مدير المشروع. منسق المنطقة يُبلَّغ للاطلاع.</div>
+   <div class="row" style="margin-top:14px"><button class="btn" id="n_back">السابق</button><button class="btn pri" id="n_submit">إرسال للمراجعة</button></div>`;
+}
+document.addEventListener('click',e=>{ if(e.target.id!=='n_submit') return;
+  const ch=newChecks(); if(ch.some(x=>x.lvl==='bad')) return toast('توجد فحوصات مرفوضة');
+  const w=ch.filter(x=>x.lvl==='warn'); const just=(document.getElementById('n_nearOk')||{}).value||'';
+  if(w.length && !just.trim()) return toast('تبرير التحذيرات إلزامي');
+  const site=draftSite(); const self=can('site.review');
+  const r={id:S.seq++, site, by:me().id, byName:me().name, d:TODAY_S, status:self?'pending_approval':'pending_review', warns:w.map(x=>x.t), warnJust:just,
+    type:w.some(x=>x.t.includes('Scope Change'))?'Scope Change':'New Site', trail:[{t:TODAY_S,by:me().name,a:'إنشاء وإرسال'}]};
+  if(self) r.trail.push({t:TODAY_S,by:me().name,a:'مراجعة (المُنشئ يملك صلاحية المراجعة)'});
+  S.requests.unshift(r);
+  audit(site.id,'إنشاء طلب موقع جديد', r.type);
+  notify(['RC'],[site.rg],`طلب موقع جديد في منطقتك: ${site.id} · ${site.nm}`,null);
+  NEW=null; save(); go('tasks'); toast('أُرسل الطلب: '+site.id);
+});
+
+/* ====================== مهامي ====================== */
+function vTasks(){
+  const t=myTasks();
+  const stLbl={pending_review:'بانتظار المراجعة',pending_approval:'بانتظار الاعتماد',rejected:'مرفوض',approved:'معتمد'};
+  const gatesBy={}; t.gates.forEach(m=>{(gatesBy[m.cur]=gatesBy[m.cur]||[]).push(m);});
+  const mine=S.requests.filter(r=>r.by===me().id);
+  return `<h1>مهامي</h1><div class="sub">${esc(me().name)} · ما يظهر هنا يحدده الدور × النطاق × الصلاحية</div>
+  <div class="card" style="margin-bottom:14px"><h2>طلبات المواقع الجديدة</h2>
+   ${t.req.length?`<table><tr><th>الرمز</th><th>الاسم</th><th>المنطقة</th><th>النوع</th><th>من</th><th>الحالة</th><th>تحذيرات</th><th></th></tr>${t.req.map(r=>`<tr>
+     <td class="mono"><b>${esc(r.site.id)}</b></td><td>${esc(r.site.nm)}</td><td>${esc(regAr(r.site.rg))}</td><td><span class="pill ${r.type==='Scope Change'?'p-warn':'p-info'} ltr">${esc(r.type)}</span></td>
+     <td class="small">${esc(r.byName)}</td><td><span class="pill ${r.status==='rejected'?'p-bad':'p-warn'}">${stLbl[r.status]}</span>${r.reason?`<div class="small muted">${esc(r.reason)}</div>`:''}</td>
+     <td class="small">${r.warns.length?r.warns.map(esc).join('<br>')+(r.warnJust?`<div class="muted">التبرير: ${esc(r.warnJust)}</div>`:''):'—'}</td>
+     <td style="white-space:nowrap">${r.status==='rejected'?`<button class="btn sm" onclick="reopenReq(${r.id})">تعديل وإعادة الإرسال</button>`:
+       `<button class="btn sm ok" onclick="decideReq(${r.id},true)">${r.status==='pending_review'?'مراجعة وتمرير':'اعتماد'}</button> <button class="btn sm bad" onclick="decideReq(${r.id},false)">رفض</button>`}</td></tr>`).join('')}</table>`
+     :'<div class="empty">لا توجد طلبات بانتظارك</div>'}
+  </div>
+  ${mine.length?`<div class="card" style="margin-bottom:14px"><h2>طلباتي المرسلة</h2><table><tr><th>الرمز</th><th>الحالة</th><th>المسار</th></tr>${mine.map(r=>`<tr><td class="mono">${r.status==='approved'?`<a href="#/site/${encodeURIComponent(r.site.id)}">${esc(r.site.id)}</a>`:esc(r.site.id)}</td><td><span class="pill ${r.status==='approved'?'p-ok':r.status==='rejected'?'p-bad':'p-warn'}">${stLbl[r.status]}</span></td><td class="small">${r.trail.map(x=>`${esc(x.a)} (${esc(x.by)})`).join(' ← ')}</td></tr>`).join('')}</table></div>`:''}
+  <div class="card" style="margin-bottom:14px"><h2>بوابات جاهزة تنتظر اعتمادك (${fmt(t.gates.length)})</h2>
+   ${t.gates.length?Object.entries(gatesBy).map(([i,list])=>`<h3 style="margin-top:12px"><span class="ltr">G${+i+1<10?(+i+1)+' · '+GATES[+i+1]:'Final Closure'}</span> <span class="pill p-warn">${list.length}</span></h3>
+     <table><tr><th>الموقع</th><th>المنطقة</th><th>المرحلة المكتملة</th><th>آخر بند منجز</th><th></th></tr>
+     ${list.slice(0,15).map(m=>`<tr><td class="mono"><a href="#/site/${encodeURIComponent(m.s.id)}">${esc(m.s.id)}</a></td><td>${esc(regAr(m.s.rg))}</td><td class="ltr">${esc(STAGES[i].n)}</td><td class="mono small">${esc(m.st[i].maxDate||'—')}</td><td><button class="btn sm ok" onclick="approveGate('${esc(m.s.id)}',${i})">اعتماد</button></td></tr>`).join('')}
+     </table>${list.length>15?`<div class="small muted">و${list.length-15} أخرى · <a href="#/sites/ready">عرض الكل</a></div>`:''}`).join('')
+     :'<div class="empty">لا بوابات جاهزة ضمن صلاحياتك ونطاقك</div>'}
+  </div>
+  ${t.changes.length?`<div class="card" style="margin-bottom:14px"><h2>طلبات تعديل على مراحل مقفلة</h2><table><tr><th>الموقع</th><th>المرحلة</th><th>السبب</th><th>من</th><th></th></tr>${t.changes.map(c=>`<tr><td class="mono">${esc(c.site)}</td><td class="ltr">${esc(STAGES[c.stage].n)}</td><td>${esc(c.reason)}</td><td class="small">${esc(c.by)}</td><td><button class="btn sm ok" onclick="decideChange(${c.id},true)">اعتماد وفتح</button> <button class="btn sm bad" onclick="decideChange(${c.id},false)">رفض</button></td></tr>`).join('')}</table></div>`:''}
+  <div class="card"><h2>التنبيهات</h2>${t.notif.length?`<ul class="chk audit">${t.notif.slice(0,30).map(n=>`<li><span class="mono small muted">${esc(n.t)}</span> · ${n.site?`<a href="#/site/${encodeURIComponent(n.site)}">${esc(n.text)}</a>`:esc(n.text)}</li>`).join('')}</ul>`:'<div class="empty">لا تنبيهات</div>'}</div>`;
+}
+function decideReq(id,ok){
+  const r=S.requests.find(x=>x.id===id);
+  if(!ok){ modal(`<h2>رفض الطلب ${esc(r.site.id)}</h2><label class="f"><span class="req">سبب الرفض</span><textarea id="m_r" rows="3"></textarea></label>
+     <div class="row" style="margin-top:14px"><button class="btn bad" id="m_ok">رفض</button><button class="btn" onclick="closeModal()">إلغاء</button></div>`);
+    document.getElementById('m_ok').onclick=()=>{ const t=document.getElementById('m_r').value.trim(); if(!t) return toast('السبب إلزامي');
+      r.status='rejected'; r.reason=t; r.trail.push({t:TODAY_S,by:me().name,a:'رفض: '+t}); audit(r.site.id,'رفض طلب الموقع',t); closeModal(); rerender(); };
+    return; }
+  if(r.status==='pending_review'){ r.status='pending_approval'; r.trail.push({t:TODAY_S,by:me().name,a:'مراجعة وتمرير'}); audit(r.site.id,'مراجعة طلب الموقع',''); notify(['PM'],null,`طلب موقع بانتظار الاعتماد: ${r.site.id}`,null); }
+  else { r.status='approved'; r.site.approvedAt=TODAY_S; r.trail.push({t:TODAY_S,by:me().name,a:'اعتماد'});
+    audit(r.site.id,'اعتماد الموقع الجديد','دخل مرحلة RF & DESIGN · جُمّد خطها المرجعي '+TODAY_S);
+    notify(['RC'],[r.site.rg],`اعتُمد موقع جديد في منطقتك: ${r.site.id} · ${r.site.nm}`,r.site.id);
+    notify(['RFE','TLD'],null,`${r.site.id}: دخل مرحلة RF & DESIGN`,r.site.id); }
+  save(); refreshSites(); route(); toast('تم');
+}
+function reopenReq(id){ const r=S.requests.find(x=>x.id===id); const d=r.site;
+  NEW=Object.assign(blankNew(),{rg:d.rg, serial:d.id.slice(2,5), suffix:d.id.length>5?d.id.slice(-1):'', replaces:d.replaces||'', sr:d.sr, nm:d.nm, own:d.own||'', la:String(d.la), lo:String(d.lo), ty:d.ty, sc:d.sc, up:d.up, to:d.to, en:d.en, rt:d.rt, tt:d.tt, th:String(d.th||''), just:d.just,
+    ph:d.ph, bt:d.bt||'', ds:d.ds, te:d.s.te, sa:d.s.sa, ge:d.s.ge, hl:d.s.hl, tes:yes(d.s.ip)?'ip':'full', dm:d.s.dm});
+  S.requests=S.requests.filter(x=>x.id!==id); save(); go('new'); }
+
+/* ====================== جودة البيانات ====================== */
+function vQuality(){
+  const ms=SITES.filter(inScope).map(model).filter(m=>!m.cancelled);
+  const bypass={}; const order={};
+  ms.forEach(m=>m.flags.forEach(f=>{ const o=f.k==='bypass'?bypass:order; (o[f.i]=o[f.i]||[]).push(m); }));
+  const noScope=ms.filter(m=>m.scopeMissing), noSr=ms.filter(m=>!m.s.sr);
+  const gatesNoHolder=['G1','G2','G3','G4','G5','G6','G7','G8','G9','close.approve'].filter(p=>!(S.grants[p]||[]).length);
+  const row=(t,n,link,note)=>`<tr><td>${t}</td><td><b>${fmt(n)}</b></td><td class="small muted">${note||''}</td><td>${link&&n?`<a href="${link}">عرض</a>`:''}</td></tr>`;
+  const missingItems={}; ms.forEach(m=>{ if(m.cur>=10) return; m.st[m.cur].items.filter(i=>i.st==='pending').forEach(i=>{ i.own.forEach(r=>{ missingItems[r]=(missingItems[r]||0)+1; }); }); });
+  return `<h1>جودة البيانات</h1><div class="sub">الصفوف الناقصة أو المتناقضة، منسوبة لمسؤوليها · محسوبة من البيانات المرحّلة</div>
+  <div class="grid g2">
+  <div class="card"><h2>ما كشفه الترحيل</h2><table><tr><th>الفحص</th><th>العدد</th><th>الملاحظة</th><th></th></tr>
+   ${STAGES.map((g,i)=>bypass[i]?row(`<span class="ltr">${esc(g.n)}</span>: مَعلم مسجل وبنود ناقصة`,bypass[i].length,'#/sites/flags','عبر المرحلة دون استكمال شروط بوابتها'):'').join('')}
+   ${STAGES.map((g,i)=>order[i]?row(`<span class="ltr">${esc(g.n)}</span>: مسجل قبل مرحلة سابقة`,order[i].length,'#/sites/flags','ترتيب المعالم مكسور'):'').join('')}
+   ${row('نطاق عمل غير مكتمل (GECOL / HLC / Delivery Model)',noScope.length,'#/sites/flags','لا يُعرف ما هو «غير منطبق»')}
+   ${row('المنطقة الفرعية فارغة',noSr.length,'','تصبح إلزامية')}
+   ${row('مواقع شاردة (في RF & Design وغائبة عن Master)',RAW.stray.length,'','تُحسم يدوياً قبل التحميل')}
+  </table></div>
+  <div class="card"><h2>بنود ناقصة في المرحلة الحالية، حسب المالك</h2><table><tr><th>المالك</th><th>بنود ناقصة</th></tr>
+   ${Object.entries(missingItems).sort((a,b)=>b[1]-a[1]).map(([r,n])=>`<tr><td>${esc(ROLES[r])}</td><td><b>${fmt(n)}</b></td></tr>`).join('')}</table>
+   ${gatesNoHolder.length?`<div class="note bad">بوابات بلا معتمِد: ${gatesNoHolder.map(ltr).join('، ')}</div>`:'<div class="note ok small">لكل بوابة صاحب صلاحية واحد على الأقل.</div>'}
+  </div></div>
+  <div class="card" style="margin-top:14px"><h2>المواقع الشاردة</h2><table><tr><th>الرمز في RF & Design</th><th>Site Owner ID</th><th>الاسم</th><th>المنطقة</th><th>الإحداثيات</th><th>ملاحظة</th></tr>
+   ${RAW.stray.map(s=>{ const twin=SITES.find(x=>x.la===s.la&&x.lo===s.lo); const bad=!CODE_RE.test(s.id);
+     return `<tr><td class="mono">${esc(s.id)}</td><td class="mono">${esc(s.own||'—')}</td><td>${esc(s.nm)}</td><td>${esc(regAr(s.rg))}</td><td class="mono small">${esc(s.la)}, ${esc(s.lo)}</td>
+     <td class="small">${bad?'<span class="pill p-bad">رمز لا يطابق الصيغة</span> ':''}${twin?`نفس إحداثيات <a class="mono" href="#/site/${encodeURIComponent(twin.id)}">${esc(twin.id)}</a>`:''}</td></tr>`;}).join('')}</table></div>`;
+}
+
+/* ====================== الإعدادات ====================== */
+function vSettings(){
+  const ed=can('settings.edit'); const roles=Object.keys(ROLES);
+  return `<h1>الصلاحيات والإعدادات</h1><div class="sub">الصلاحية = الدور × النطاق × المرحلة. اعتماد البوابة صلاحية تُمنح من هنا، لا دور ثابت في الكود. ${ed?'':'<b>للعرض فقط · التعديل لمدير المشروع.</b>'}</div>
+  <div class="card" style="overflow-x:auto"><h2>مصفوفة الصلاحيات</h2>
+   <table class="perm"><tr><th>الصلاحية</th>${roles.map(r=>`<th class="small" style="min-width:80px">${esc(ROLES[r])}</th>`).join('')}</tr>
+   ${PERMS.map(([p,l])=>`<tr><td><span class="mono small">${esc(p)}</span><div class="small">${esc(l)}</div></td>${roles.map(r=>`<td><input type="checkbox" ${(S.grants[p]||[]).includes(r)?'checked':''} ${ed?'':'disabled'} onchange="toggleGrant('${p}','${r}',this.checked)"></td>`).join('')}</tr>`).join('')}
+   </table>
+   <div class="small muted" style="margin-top:8px">منسق المنطقة يمارس أي صلاحية تُمنح له داخل منطقته فقط. مثال: امنحه <span class="mono">G4</span> ثم ادخل باسمه، وستظهر له بوابات منطقته وحدها.</div></div>
+  <div class="grid g2" style="margin-top:14px">
+   <div class="card"><h2>المستخدمون التجريبيون ونطاقهم</h2><table><tr><th>المستخدم</th><th>الدور</th><th>النطاق</th></tr>
+    ${USERS.map(u=>`<tr><td>${esc(u.name)}</td><td class="small">${esc(ROLES[u.role])}</td><td class="small">${u.regions?u.regions.map(regAr).join('، '):'المشروع كاملاً'}</td></tr>`).join('')}</table>
+    <div class="small muted" style="margin-top:6px">قائمة <span class="ltr">Project Staff</span> في الملف فارغة، فالأسماء هنا أدوار لا أشخاص.</div></div>
+   <div class="card"><h2>العدد المتعاقد عليه (<span class="ltr">tblProjectScope</span>)</h2>
+    <p class="small muted">فارغ في الملف. القيم أدناه افتراضية للنموذج فقط.</p>
+    <div class="form" style="grid-template-columns:1fr 1fr">${['PH1','PH2'].map(p=>`<label class="f"><span>${p} · Contract Sites</span><input type="number" min="0" value="${S.contract[p]}" ${ed?'':'disabled'} onchange="S.contract['${p}']=+this.value;save();toast('حُفظ')"></label>`).join('')}</div>
+    <h3 style="margin-top:16px">قوائم مرجعية (من شيت Setting)</h3>
+    <div class="small">${Object.entries(LISTS).map(([k,v])=>`<div style="margin-bottom:4px"><span class="mono">${k}</span>: ${v.map(ltr).join(' · ')}</div>`).join('')}</div></div>
+  </div>`;
+}
+function toggleGrant(p,r,on){ const a=S.grants[p]=S.grants[p]||[]; const i=a.indexOf(r); if(on&&i<0) a.push(r); if(!on&&i>=0) a.splice(i,1); save(); renderNav(); toast('حُدّثت الصلاحية'); }
+
+/* ====================== حول النموذج ====================== */
+function vAbout(){
+  return `<h1>حول هذا النموذج</h1><div class="sub">نموذج أولي قابل للنقر لمراجعة التصميم قبل التنفيذ. ليس النظام النهائي.</div>
+  <div class="grid g2">
+  <div class="card"><h2>ما يعرضه</h2><ul>
+   <li>المواقع الـ ${RAW.sites.length} من Master، مع حساب مرحلة كل موقع وبواباته من البيانات نفسها، لا من عمود يُكتب.</li>
+   <li>عشر مراحل وتسع بوابات كما في <span class="ltr">MilestoneOrder</span>، و«غير منطبق» مستنتج من نطاق العمل.</li>
+   <li>مسار إنشاء موقع كامل: فحوصات فورية للرمز والتكرار، ومعاينة المراحل حسب النطاق، ومراجعة ثم اعتماد.</li>
+   <li>اعتماد البوابات بالصلاحية، مع مصفوفة صلاحيات قابلة للتعديل.</li>
+   <li>قفل المرحلة بعد اعتمادها، وطلب تعديل بسبب، وسجل تدقيق.</li>
+   <li>منسق المنطقة: يرى منطقته فقط، ويدير مشكلة الموقع، ويتلقى التنبيهات.</li></ul></div>
+  <div class="card"><h2>جرّب هذا السيناريو</h2><ol>
+   <li>ادخل باسم <b>مهندس RF</b> ← «إضافة موقع» ← اختر طرابلس وجرّب إحداثيات موقع قائم مثل <span class="mono">32.800074, 13.142691</span>.</li>
+   <li>أكمل النطاق واجعل Tower Erection وSite Adaption = N/A، وراقب المعاينة.</li>
+   <li>ادخل باسم <b>قائد فريق التصميم والاستملاك</b> ← «مهامي» ← مرّر الطلب.</li>
+   <li>ادخل باسم <b>مدير المشروع</b> ← اعتمد الموقع، ثم افتحه من «المواقع».</li>
+   <li>ادخل باسم <b>منسق منطقة طرابلس</b>: لاحظ أنه يرى طرابلس فقط، وتلقى تنبيهاً بالموقع الجديد.</li>
+   <li>ادخل باسم <b>قائد فريق TE</b> ← «مهامي» ← اعتمد بوابة جاهزة.</li></ol></div>
+  <div class="card"><h2>افتراضات النموذج</h2><ul class="small">
+   <li>حالة المرحلة تُحسب من أعمدة Master. المراحل بلا عمود مَعلم (RF & Design وPRE-CW وRFI والإغلاق) تُعتبر منجزة إذا اكتملت بنودها وبدأت مرحلة لاحقة.</li>
+   <li>المراحل المنجزة في الملف تظهر باعتماد من نوع «ترحيل»، ولم يُختلق لها معتمِد.</li>
+   <li>أعمدة المراحل 8 و9 و10 شبه فارغة في الملف، لذا تقف أغلب المواقع المتقدمة عند <span class="ltr">CLUSTER OPTIMIZATION</span>.</li>
+   <li>التعديلات تُحفظ في متصفحك فقط. «إعادة ضبط» تمسحها.</li></ul></div>
+  </div>`;
+}
+
+/* ====================== التشغيل ====================== */
+document.getElementById('today').textContent='تاريخ التقرير: '+TODAY_S;
+const us=document.getElementById('userSel');
+us.innerHTML=USERS.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join(''); us.value=S.user;
+us.onchange=()=>{ S.user=us.value; NEW=null; SEL_STAGE=null; save(); route(); toast('أنت الآن: '+me().name); };
+document.getElementById('resetBtn').onclick=()=>{ if(confirm('مسح كل التعديلات التجريبية والعودة لبيانات الملف؟')){ localStorage.removeItem(KEY); S=fresh(); NEW=null; refreshSites(); us.value=S.user; route(); } };
+window.addEventListener('hashchange',route);
+route();
+</script>
+</body>
+</html>
